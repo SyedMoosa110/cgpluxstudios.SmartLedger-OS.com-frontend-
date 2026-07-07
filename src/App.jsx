@@ -57,7 +57,15 @@ export default function App() {
   const [txForm, setTxForm] = useState(emptyTransaction())
   const [editingTx, setEditingTx] = useState(null)
 
-  const api = useMemo(() => axios.create({ baseURL: apiBase, withCredentials: true, xsrfCookieName: 'csrftoken', xsrfHeaderName: 'X-CSRFToken' }), [])
+  const api = useMemo(() => {
+    const instance = axios.create({ baseURL: apiBase, withCredentials: true })
+    instance.interceptors.request.use((config) => {
+      const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]*)/)
+      if (match) config.headers['X-CSRFToken'] = match[1]
+      return config
+    })
+    return instance
+  }, [])
   const incomeCategories = data.categories.filter((c) => c.category_type === 'income')
   const expenseCategories = data.categories.filter((c) => c.category_type === 'expense')
 
@@ -124,19 +132,27 @@ export default function App() {
     await prepareCsrf()
     const formData = new FormData()
     Object.entries(txForm).forEach(([key, value]) => {
-      if (value !== '' && value !== null) formData.append(key, value)
+      if (value !== null && value !== undefined) {
+        if (key === 'attachment' && !(value instanceof File)) return
+        formData.append(key, value)
+      }
     })
     if (!formData.get('category')) formData.set('category', (txForm.transaction_type === 'income' ? incomeCategories[0] : expenseCategories[0])?.id || '')
     if (!formData.get('account')) formData.set('account', data.accounts[0]?.id || '')
     try {
-      if (editingTx) await api.put(`/transactions/${editingTx.id}/`, formData)
+      if (editingTx) await api.patch(`/transactions/${editingTx.id}/`, formData)
       else await api.post('/transactions/', formData)
       setTxForm(emptyTransaction(txForm.transaction_type))
       setEditingTx(null)
       await loadAll()
       setMessage('Transaction saved in backend.')
     } catch (error) {
-      setMessage(error.response?.data?.detail || 'Transaction save failed. Check server.')
+      const d = error.response?.data;
+      if (d && typeof d === 'object' && !d.detail) {
+        setMessage(Object.entries(d).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(' ') : v}`).join(' | '));
+      } else {
+        setMessage(d?.detail || 'Transaction save failed. Check server.');
+      }
     }
   }
 
@@ -166,7 +182,12 @@ export default function App() {
       await loadAll()
       setMessage('Record saved in backend.')
     } catch (error) {
-      setMessage(error.response?.data?.detail || 'Save failed.')
+      const d = error.response?.data;
+      if (d && typeof d === 'object' && !d.detail) {
+        setMessage(Object.entries(d).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(' ') : v}`).join(' | '));
+      } else {
+        setMessage(d?.detail || 'Save failed.');
+      }
     }
   }
 
@@ -300,7 +321,7 @@ function TransactionForm({ form, setForm, save, accounts, categories, parties, e
   return <form className="entryForm" onSubmit={save}>
     <select value={form.transaction_type} onChange={(e) => setForm({ ...form, transaction_type: e.target.value, category: '' })}><option value="income">Income</option><option value="expense">Expense</option></select>
     <input required placeholder="Source / vendor / title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-    <input required type="number" placeholder="Amount" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+    <input required type="number" step="any" placeholder="Amount" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
     <input required type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
     <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>{categories.map((c) => <option value={c.id} key={c.id}>{c.name}</option>)}</select>
     <select value={form.account} onChange={(e) => setForm({ ...form, account: e.target.value })}>{accounts.map((a) => <option value={a.id} key={a.id}>{a.name}</option>)}</select>
@@ -343,7 +364,7 @@ function PartiesPanel({ parties, save, remove }) {
 
 function DuesPanel({ dues, parties, save, remove }) {
   const [form, setForm] = useState({ title: '', due_type: 'payable', amount: '', due_date: new Date().toISOString().slice(0, 10), status: 'pending', party: '' })
-  return <Panel title="Due payments" icon={Clock3}><form className="inlineForm" onSubmit={(e) => { e.preventDefault(); save('dues', form); setForm({ ...form, title: '', amount: '' }) }}><input required placeholder="Due title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /><select value={form.due_type} onChange={(e) => setForm({ ...form, due_type: e.target.value })}><option value="payable">Payable</option><option value="receivable">Receivable</option></select><input required type="number" placeholder="Amount" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /><input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} /><select value={form.party} onChange={(e) => setForm({ ...form, party: e.target.value })}><option value="">No party</option>{parties.map((p) => <option value={p.id} key={p.id}>{p.name}</option>)}</select><button className="primary">Add</button></form><div className="dueList">{dues.map((d) => <div key={d.id}><span>{d.title}<small>{d.party_name || 'No party'} - {d.due_date} - {d.status}</small></span><strong>{currency(d.amount)}</strong><button onClick={() => remove(d.id)}><Trash2 size={15} /></button></div>)}</div></Panel>
+  return <Panel title="Due payments" icon={Clock3}><form className="inlineForm" onSubmit={(e) => { e.preventDefault(); save('dues', form); setForm({ ...form, title: '', amount: '' }) }}><input required placeholder="Due title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /><select value={form.due_type} onChange={(e) => setForm({ ...form, due_type: e.target.value })}><option value="payable">Payable</option><option value="receivable">Receivable</option></select><input required type="number" step="any" placeholder="Amount" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /><input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} /><select value={form.party} onChange={(e) => setForm({ ...form, party: e.target.value })}><option value="">No party</option>{parties.map((p) => <option value={p.id} key={p.id}>{p.name}</option>)}</select><button className="primary">Add</button></form><div className="dueList">{dues.map((d) => <div key={d.id}><span>{d.title}<small>{d.party_name || 'No party'} - {d.due_date} - {d.status}</small></span><strong>{currency(d.amount)}</strong><button onClick={() => remove(d.id)}><Trash2 size={15} /></button></div>)}</div></Panel>
 }
 
 function SettingsPanel({ accounts, notes, save, remove, changePassword }) {
@@ -351,7 +372,7 @@ function SettingsPanel({ accounts, notes, save, remove, changePassword }) {
   const [account, setAccount] = useState({ name: '', account_type: 'cash', opening_balance: 0, is_active: true })
   return <Panel title="Admin login and settings" icon={Settings}>
     <form className="inlineForm" onSubmit={changePassword}><input required type="password" name="old_password" placeholder="Old password" /><input required type="password" name="new_password" placeholder="New password" /><button className="primary">Change password</button></form>
-    <form className="inlineForm" onSubmit={(e) => { e.preventDefault(); save('accounts', account); setAccount({ ...account, name: '', opening_balance: 0 }) }}><input required placeholder="Account name" value={account.name} onChange={(e) => setAccount({ ...account, name: e.target.value })} /><select value={account.account_type} onChange={(e) => setAccount({ ...account, account_type: e.target.value })}><option value="cash">Cash</option><option value="bank">Bank</option><option value="easypaisa">Easypaisa</option><option value="jazzcash">JazzCash</option></select><input type="number" placeholder="Opening balance" value={account.opening_balance} onChange={(e) => setAccount({ ...account, opening_balance: e.target.value })} /><button className="primary">Add account</button></form>
+    <form className="inlineForm" onSubmit={(e) => { e.preventDefault(); save('accounts', account); setAccount({ ...account, name: '', opening_balance: 0 }) }}><input required placeholder="Account name" value={account.name} onChange={(e) => setAccount({ ...account, name: e.target.value })} /><select value={account.account_type} onChange={(e) => setAccount({ ...account, account_type: e.target.value })}><option value="cash">Cash</option><option value="bank">Bank</option><option value="easypaisa">Easypaisa</option><option value="jazzcash">JazzCash</option></select><input type="number" step="any" placeholder="Opening balance" value={account.opening_balance} onChange={(e) => setAccount({ ...account, opening_balance: e.target.value })} /><button className="primary">Add account</button></form>
     <form className="inlineForm" onSubmit={(e) => { e.preventDefault(); save('notes', note); setNote({ title: '', body: '', reminder_date: '' }) }}><input required placeholder="Note title" value={note.title} onChange={(e) => setNote({ ...note, title: e.target.value })} /><input required placeholder="Reminder note" value={note.body} onChange={(e) => setNote({ ...note, body: e.target.value })} /><input type="date" value={note.reminder_date} onChange={(e) => setNote({ ...note, reminder_date: e.target.value })} /><button className="primary">Add note</button></form>
     <SimpleRows rows={accounts.map((a) => [a.id, a.name, a.account_type, currency(a.current_balance)])} remove={(id) => remove('accounts', id)} />
     <SimpleRows rows={notes.map((n) => [n.id, n.title, n.body, n.reminder_date])} remove={(id) => remove('notes', id)} />
