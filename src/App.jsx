@@ -48,6 +48,7 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [data, setData] = useState({ dashboard: null, reports: null, accounts: [], categories: [], parties: [], transactions: [], dues: [], notes: [], backups: [] })
+  const [loaded, setLoaded] = useState({ refs: false, Dashboard: false, Transactions: false, Categories: false, 'Parties/Vendors': false, Settings: false, Backup: false })
   const [filters, setFilters] = useState({ keyword: '', category: '', payment_method: '', start: '', end: '', min_amount: '', max_amount: '' })
   const [appliedFilters, setAppliedFilters] = useState(filters)
   const [txForm, setTxForm] = useState(emptyTransaction())
@@ -78,17 +79,59 @@ export default function App() {
     }
   }, [activeCategories, txForm.category])
 
-  const loadAll = useCallback(async () => {
+  const mergeData = useCallback((updates) => {
+    setData((current) => ({ ...current, ...updates }))
+  }, [])
+
+  const loadReferenceData = useCallback(async (force = false) => {
+    if (!auth || (loaded.refs && !force)) return
+    const [accounts, categories, parties] = await Promise.all([
+      api.get('/accounts/'),
+      api.get('/categories/'),
+      api.get('/parties/'),
+    ])
+    mergeData({ accounts: accounts.data, categories: categories.data, parties: parties.data })
+    setLoaded((current) => ({ ...current, refs: true }))
+  }, [api, auth, loaded.refs, mergeData])
+
+  const loadActivePage = useCallback(async (force = false) => {
     if (!auth) return
+    if (loaded[active] && !force) return
     setLoading(true)
     try {
       const query = new URLSearchParams(Object.entries(appliedFilters).filter(([, v]) => v)).toString()
-      const [dashboard, accounts, categories, parties, transactions, dues, notes, backups, reports] = await Promise.all([
-        api.get('/dashboard/'), api.get('/accounts/'), api.get('/categories/'), api.get('/parties/'),
-        api.get(`/transactions/${query ? `?${query}` : ''}`), api.get('/dues/'), api.get('/notes/'),
-        api.get('/backups/'), api.get(`/reports/${query ? `?${query}` : ''}`),
-      ])
-      setData({ dashboard: dashboard.data, accounts: accounts.data, categories: categories.data, parties: parties.data, transactions: transactions.data, dues: dues.data, notes: notes.data, backups: backups.data, reports: reports.data })
+      if (active === 'Dashboard') {
+        const [dashboard, reports] = await Promise.all([
+          api.get('/dashboard/'),
+          api.get(`/reports/${query ? `?${query}` : ''}`),
+        ])
+        mergeData({ dashboard: dashboard.data, reports: reports.data })
+      }
+      if (active === 'Transactions') {
+        await loadReferenceData()
+        const [transactions, dues] = await Promise.all([
+          api.get(`/transactions/${query ? `?${query}` : ''}`),
+          api.get('/dues/'),
+        ])
+        mergeData({ transactions: transactions.data, dues: dues.data })
+      }
+      if (active === 'Categories') {
+        const categories = await api.get('/categories/')
+        mergeData({ categories: categories.data })
+      }
+      if (active === 'Parties/Vendors') {
+        const parties = await api.get('/parties/')
+        mergeData({ parties: parties.data })
+      }
+      if (active === 'Settings') {
+        const [accounts, notes] = await Promise.all([api.get('/accounts/'), api.get('/notes/')])
+        mergeData({ accounts: accounts.data, notes: notes.data })
+      }
+      if (active === 'Backup') {
+        const backups = await api.get('/backups/')
+        mergeData({ backups: backups.data })
+      }
+      setLoaded((current) => ({ ...current, [active]: true }))
       setMessage('')
     } catch (error) {
       if (error.response?.status === 401 || error.response?.status === 403) setAuth(null)
@@ -96,7 +139,7 @@ export default function App() {
     } finally {
       setLoading(false)
     }
-  }, [api, auth, appliedFilters])
+  }, [active, api, auth, appliedFilters, loadReferenceData, loaded, mergeData])
 
   useEffect(() => {
     async function checkSession() {
@@ -114,10 +157,11 @@ export default function App() {
     checkSession()
   }, [])
 
-  useEffect(() => { loadAll() }, [loadAll])
+  useEffect(() => { loadActivePage() }, [loadActivePage])
 
   function applyFilters() {
     setAppliedFilters(filters)
+    setLoaded((current) => ({ ...current, Dashboard: false, Transactions: false }))
   }
 
   async function login(event) {
@@ -139,6 +183,7 @@ export default function App() {
     await api.post('/auth/logout/').catch(() => {})
     setAuth(null)
     setData({ dashboard: null, reports: null, accounts: [], categories: [], parties: [], transactions: [], dues: [], notes: [], backups: [] })
+    setLoaded({ refs: false, Dashboard: false, Transactions: false, Categories: false, 'Parties/Vendors': false, Settings: false, Backup: false })
     setMessage('Logged out.')
   }
 
@@ -158,7 +203,8 @@ export default function App() {
       else await api.post('/transactions/', formData)
       setTxForm(emptyTransaction(txForm.transaction_type))
       setEditingTx(null)
-      await loadAll()
+      setLoaded((current) => ({ ...current, Dashboard: false, Transactions: false }))
+      await loadActivePage(true)
       setMessage('Transaction saved in backend.')
     } catch (error) {
       const d = error.response?.data;
@@ -182,7 +228,8 @@ export default function App() {
     try {
       await prepareCsrf()
       await api.delete(`/${resource}/${id}/`)
-      await loadAll()
+      setLoaded((current) => ({ ...current, refs: false, Dashboard: false, Transactions: false, Categories: false, 'Parties/Vendors': false, Settings: false, Backup: false }))
+      await loadActivePage(true)
       setMessage('Record deleted from backend.')
     } catch (error) {
       setMessage(error.response?.data?.detail || 'Delete failed.')
@@ -193,7 +240,8 @@ export default function App() {
     try {
       await prepareCsrf()
       await api.post(`/${resource}/`, payload)
-      await loadAll()
+      setLoaded((current) => ({ ...current, refs: false, Dashboard: false, Transactions: false, Categories: false, 'Parties/Vendors': false, Settings: false, Backup: false }))
+      await loadActivePage(true)
       setMessage('Record saved in backend.')
     } catch (error) {
       const d = error.response?.data;
@@ -224,7 +272,7 @@ export default function App() {
     try {
       await prepareCsrf()
       await api.post('/backup/create/', { backup_type: 'manual', notes: 'Created from dashboard' })
-      await loadAll()
+      await loadActivePage(true)
       setMessage('Database backup created.')
     } catch (error) {
       setMessage(error.response?.data?.detail || 'Backup failed.')
@@ -275,7 +323,7 @@ export default function App() {
       <header className="topbar">
         <button className="iconButton" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu"><Menu /></button>
         <div className="pageHeading"><p>{loading ? 'Syncing latest data...' : `Logged in as ${auth.username}`}</p><h1>{active}</h1><span>{pageCopy[active]}</span></div>
-        <div className="topActions"><button onClick={loadAll} title="Refresh"><RefreshCw size={18} /></button><button onClick={logout} title="Logout"><LogOut size={18} /></button></div>
+        <div className="topActions"><button onClick={() => loadActivePage(true)} title="Refresh"><RefreshCw size={18} /></button><button onClick={logout} title="Logout"><LogOut size={18} /></button></div>
       </header>
       {message && <div className="notice">{message}</div>}
 
