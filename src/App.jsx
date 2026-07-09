@@ -4,7 +4,7 @@ import {
   ArrowDownCircle, ArrowUpCircle, Banknote, BookOpen, CalendarDays, CheckCircle2,
   Clock3, Download, Edit3, FileSpreadsheet, FileText, Landmark, LayoutDashboard,
   Lock, LogOut, Menu, Plus, ReceiptText, RefreshCw, Search, Settings, Tags,
-  Trash2, Upload, Users, WalletCards, ShoppingCart, Package,
+  Trash2, Upload, Users, WalletCards, ShoppingCart, Package, Printer,
 } from 'lucide-react'
 import './App.css'
 
@@ -314,6 +314,17 @@ export default function App() {
     URL.revokeObjectURL(url)
   }
 
+  async function downloadSalesExport(type) {
+    const response = await api.get(`/export-sales/${type}/`, { responseType: 'blob' })
+    const url = URL.createObjectURL(response.data)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = type === 'excel' ? 'sales-statement.xlsx' : 'sales-statement.pdf'
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+
   const chartData = (data.reports?.by_date || []).reduce((rows, row) => {
     const label = String(row.date)
     const found = rows.find((item) => item.date === label) || { date: label, income: 0, expense: 0 }
@@ -384,7 +395,7 @@ export default function App() {
 
       {active === 'Categories' && <CategoriesPanel categories={data.categories} save={saveSimple} remove={(id) => remove('categories', id)} />}
       {active === 'Parties/Vendors' && <PartiesPanel parties={data.parties} save={saveSimple} remove={(id) => remove('parties', id)} />}
-      {active === 'Sales' && <SalesPanel sales={data.sales} stock={data.stock} accounts={data.accounts} save={saveSimple} remove={(id) => remove('sales', id)} />}
+      {active === 'Sales' && <SalesPanel sales={data.sales} stock={data.stock} accounts={data.accounts} save={saveSimple} remove={(id) => remove('sales', id)} exportSales={downloadSalesExport} />}
       {active === 'Stock' && <StockPanel stock={data.stock} save={saveSimple} remove={(id) => remove('stock', id)} />}
       {active === 'Settings' && <SettingsPanel accounts={data.accounts} notes={data.notes} save={saveSimple} remove={remove} changePassword={changePassword} />}
       {active === 'Backup' && <BackupPanel backups={data.backups} createBackup={createBackup} />}
@@ -582,9 +593,10 @@ function StockPanel({ stock, save, remove }) {
   )
 }
 
-function SalesPanel({ sales, stock, accounts, save, remove }) {
+function SalesPanel({ sales, stock, accounts, save, remove, exportSales }) {
   const [form, setForm] = useState({ stock: '', quantity: '', sale_price: '', date: new Date().toISOString().slice(0, 10), account: '', notes: '' })
   const [editing, setEditing] = useState(null)
+  const [activeInvoice, setActiveInvoice] = useState(null)
 
   useEffect(() => {
     if (editing) {
@@ -656,6 +668,10 @@ function SalesPanel({ sales, stock, accounts, save, remove }) {
 
       <div style={{ marginTop: '20px' }}>
         <Panel title="Sales Ledger" icon={ShoppingCart} actions={<span className="panelMeta">{sales.length} sales</span>}>
+          <div className="exportGrid">
+            <button onClick={() => exportSales('excel')}><FileSpreadsheet /> Excel export</button>
+            <button onClick={() => exportSales('pdf')}><FileText /> PDF report</button>
+          </div>
           {sales.length ? (
             <div className="tableWrap">
               <table>
@@ -683,8 +699,9 @@ function SalesPanel({ sales, stock, accounts, save, remove }) {
                       <td><small>{sale.notes || '-'}</small></td>
                       <td>
                         <div className="rowActions">
-                          <IconButton onClick={() => setEditing(sale)}><Edit3 size={15} /></IconButton>
-                          <IconButton tone="danger" onClick={() => remove(sale.id)}><Trash2 size={15} /></IconButton>
+                          <IconButton onClick={() => setActiveInvoice(sale)} title="Invoice"><Printer size={15} /></IconButton>
+                          <IconButton onClick={() => setEditing(sale)} title="Edit"><Edit3 size={15} /></IconButton>
+                          <IconButton tone="danger" onClick={() => remove(sale.id)} title="Delete"><Trash2 size={15} /></IconButton>
                         </div>
                       </td>
                     </tr>
@@ -697,6 +714,75 @@ function SalesPanel({ sales, stock, accounts, save, remove }) {
           )}
         </Panel>
       </div>
+
+      {activeInvoice && (
+        <div className="modalOverlay" onClick={() => setActiveInvoice(null)}>
+          <div className="printable-invoice" onClick={(e) => e.stopPropagation()}>
+            <div className="invoice-header">
+              <div className="invoice-brand">
+                <Landmark size={28} />
+                <h2>HisabPro</h2>
+              </div>
+              <div className="invoice-meta">
+                <h3>INVOICE</h3>
+                <p><strong>Invoice #:</strong> INV-SALE-{activeInvoice.id}</p>
+                <p><strong>Date:</strong> {activeInvoice.date}</p>
+              </div>
+            </div>
+            
+            <div className="invoice-body">
+              <div className="invoice-bill-to">
+                <h4>Bill To:</h4>
+                <p>Walk-in Customer</p>
+                {activeInvoice.notes && <p style={{ marginTop: '8px' }}><strong>Notes:</strong> {activeInvoice.notes}</p>}
+              </div>
+              
+              <table className="invoice-table">
+                <thead>
+                  <tr>
+                    <th>Item Description</th>
+                    <th>Qty</th>
+                    <th>Rate</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>{activeInvoice.stock_name}</strong></td>
+                    <td>{activeInvoice.quantity}</td>
+                    <td>{currency(activeInvoice.sale_price)}</td>
+                    <td><strong>{currency(activeInvoice.total_price)}</strong></td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div className="invoice-total-section">
+                <div className="invoice-total-row">
+                  <span>Subtotal:</span>
+                  <span>{currency(activeInvoice.total_price)}</span>
+                </div>
+                <div className="invoice-total-row grand-total">
+                  <span>Grand Total:</span>
+                  <span>{currency(activeInvoice.total_price)}</span>
+                </div>
+              </div>
+              
+              <div className="invoice-payment-method">
+                <p><strong>Payment Received In:</strong> {activeInvoice.account_name}</p>
+              </div>
+            </div>
+
+            <div className="invoice-footer">
+              <p>Thank you for your business!</p>
+            </div>
+
+            <div className="invoice-actions">
+              <button className="primary" onClick={() => window.print()}><Printer size={16} /> Print / Save PDF</button>
+              <button onClick={() => setActiveInvoice(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
