@@ -812,3 +812,37 @@ td small {
     grid-template-columns: 1fr;
   }
 }
+
+/* Sales and Stock custom layouts & colors */
+.salesForm {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+
+.salesForm button {
+  min-height: 42px;
+}
+
+.pill.blue {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.pill.green {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.pill.red {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.pill.orange {
+  background: #fff7ed;
+  color: #c2410c;
+}
+

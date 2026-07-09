@@ -4,7 +4,7 @@ import {
   ArrowDownCircle, ArrowUpCircle, Banknote, BookOpen, CalendarDays, CheckCircle2,
   Clock3, Download, Edit3, FileSpreadsheet, FileText, Landmark, LayoutDashboard,
   Lock, LogOut, Menu, Plus, ReceiptText, RefreshCw, Search, Settings, Tags,
-  Trash2, Upload, Users, WalletCards,
+  Trash2, Upload, Users, WalletCards, ShoppingCart, Package,
 } from 'lucide-react'
 import './App.css'
 
@@ -12,13 +12,16 @@ const ChartPanel = lazy(() => import('./ChartPanel.jsx'))
 const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api'
 const navItems = [
   ['Dashboard', LayoutDashboard], ['Transactions', BookOpen], ['Categories', Tags],
-  ['Parties/Vendors', Users], ['Settings', Settings], ['Backup', Download],
+  ['Parties/Vendors', Users], ['Sales', ShoppingCart], ['Stock', Package],
+  ['Settings', Settings], ['Backup', Download],
 ]
 const pageCopy = {
   Dashboard: 'Business overview, account balances, and recent money movement.',
   Transactions: 'Record income and expenses, filter the ledger, and manage dues.',
   Categories: 'Organize income and expenses so reports stay easy to scan.',
   'Parties/Vendors': 'Keep customers, vendors, staff, and other parties in one place.',
+  Sales: 'Track product sales, record custom sales, and manage sales revenue.',
+  Stock: 'Monitor inventory levels, view total, sold, and remaining stock.',
   Settings: 'Manage accounts, reminders, and admin access.',
   Backup: 'Create and review database backups.',
 }
@@ -52,8 +55,8 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
-  const [data, setData] = useState({ dashboard: null, reports: null, accounts: [], categories: [], parties: [], transactions: [], dues: [], notes: [], backups: [] })
-  const [loaded, setLoaded] = useState({ refs: false, Dashboard: false, Transactions: false, Categories: false, 'Parties/Vendors': false, Settings: false, Backup: false })
+  const [data, setData] = useState({ dashboard: null, reports: null, accounts: [], categories: [], parties: [], transactions: [], dues: [], notes: [], backups: [], sales: [], stock: [] })
+  const [loaded, setLoaded] = useState({ refs: false, Dashboard: false, Transactions: false, Categories: false, 'Parties/Vendors': false, Settings: false, Backup: false, Sales: false, Stock: false })
   const [filters, setFilters] = useState({ keyword: '', category: '', payment_method: '', start: '', end: '', min_amount: '', max_amount: '' })
   const [appliedFilters, setAppliedFilters] = useState(filters)
   const [txForm, setTxForm] = useState(emptyTransaction())
@@ -139,6 +142,15 @@ export default function App() {
       if (active === 'Backup') {
         const backups = await api.get('/backups/')
         mergeData({ backups: backups.data })
+      }
+      if (active === 'Sales') {
+        await loadReferenceData()
+        const [sales, stock] = await Promise.all([api.get('/sales/'), api.get('/stock/')])
+        mergeData({ sales: sales.data, stock: stock.data })
+      }
+      if (active === 'Stock') {
+        const stock = await api.get('/stock/')
+        mergeData({ stock: stock.data })
       }
       setLoaded((current) => ({ ...current, [active]: true }))
       setMessage('')
@@ -236,7 +248,7 @@ export default function App() {
     try {
       await prepareCsrf()
       await api.delete(`/${resource}/${id}/`)
-      setLoaded((current) => ({ ...current, refs: false, Dashboard: false, Transactions: false, Categories: false, 'Parties/Vendors': false, Settings: false, Backup: false }))
+      setLoaded((current) => ({ ...current, refs: false, Dashboard: false, Transactions: false, Categories: false, 'Parties/Vendors': false, Settings: false, Backup: false, Sales: false, Stock: false }))
       await loadActivePage(true)
       setMessage('Record deleted from backend.')
     } catch (error) {
@@ -247,8 +259,12 @@ export default function App() {
   async function saveSimple(resource, payload) {
     try {
       await prepareCsrf()
-      await api.post(`/${resource}/`, payload)
-      setLoaded((current) => ({ ...current, refs: false, Dashboard: false, Transactions: false, Categories: false, 'Parties/Vendors': false, Settings: false, Backup: false }))
+      if (payload.id) {
+        await api.patch(`/${resource}/${payload.id}/`, payload)
+      } else {
+        await api.post(`/${resource}/`, payload)
+      }
+      setLoaded((current) => ({ ...current, refs: false, Dashboard: false, Transactions: false, Categories: false, 'Parties/Vendors': false, Settings: false, Backup: false, Sales: false, Stock: false }))
       await loadActivePage(true)
       setMessage('Record saved in backend.')
     } catch (error) {
@@ -368,6 +384,8 @@ export default function App() {
 
       {active === 'Categories' && <CategoriesPanel categories={data.categories} save={saveSimple} remove={(id) => remove('categories', id)} />}
       {active === 'Parties/Vendors' && <PartiesPanel parties={data.parties} save={saveSimple} remove={(id) => remove('parties', id)} />}
+      {active === 'Sales' && <SalesPanel sales={data.sales} stock={data.stock} accounts={data.accounts} save={saveSimple} remove={(id) => remove('sales', id)} />}
+      {active === 'Stock' && <StockPanel stock={data.stock} save={saveSimple} remove={(id) => remove('stock', id)} />}
       {active === 'Settings' && <SettingsPanel accounts={data.accounts} notes={data.notes} save={saveSimple} remove={remove} changePassword={changePassword} />}
       {active === 'Backup' && <BackupPanel backups={data.backups} createBackup={createBackup} />}
     </main>
@@ -474,4 +492,211 @@ function BackupPanel({ backups, createBackup }) {
 function SimpleRows({ rows, remove, emptyTitle = 'No records', emptyBody = 'Records will appear here.' }) {
   if (!rows.length) return <EmptyState title={emptyTitle} body={emptyBody} />
   return <div className="simpleList">{rows.map((row) => <div key={row[0]}>{row.slice(1).map((cell) => <span key={cell}>{cell || '-'}</span>)}{remove && <IconButton tone="danger" onClick={() => remove(row[0])}><Trash2 size={15} /></IconButton>}</div>)}</div>
+}
+
+function StockPanel({ stock, save, remove }) {
+  const [form, setForm] = useState({ name: '', quantity: '', unit_price: '' })
+  const [editing, setEditing] = useState(null)
+
+  useEffect(() => {
+    if (editing) {
+      setForm({ name: editing.name, quantity: editing.quantity, unit_price: editing.unit_price, id: editing.id })
+    } else {
+      setForm({ name: '', quantity: '', unit_price: '' })
+    }
+  }, [editing])
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    save('stock', form)
+    setEditing(null)
+    setForm({ name: '', quantity: '', unit_price: '' })
+  }
+
+  return (
+    <div className="stockContainer">
+      <Panel title={editing ? "Edit Stock Item" : "Add New Stock"} icon={Package}>
+        <form className="inlineForm" onSubmit={handleSubmit}>
+          <Field label="Stock Item Name">
+            <input required placeholder="e.g. Cement Bag, Steel Rod" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          </Field>
+          <Field label="Total Stock Quantity">
+            <input required type="number" placeholder="Total quantity" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
+          </Field>
+          <Field label="Unit Price (Rs)">
+            <input required type="number" step="any" placeholder="Purchase price per unit" value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: e.target.value })} />
+          </Field>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', minHeight: '42px' }}>
+            <button className="primary">{editing ? "Update" : "Add Stock"}</button>
+            {editing && <button type="button" onClick={() => setEditing(null)}>Cancel</button>}
+          </div>
+        </form>
+      </Panel>
+
+      <div style={{ marginTop: '20px' }}>
+        <Panel title="Stock Inventory Status" icon={Package} actions={<span className="panelMeta">{stock.length} items</span>}>
+          {stock.length ? (
+            <div className="tableWrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Item Name</th>
+                    <th>Unit Price</th>
+                    <th>Total Stock (Kitna Hai)</th>
+                    <th>Sold Stock (Sale Hogaya)</th>
+                    <th>Remaining Stock (Baki)</th>
+                    <th>Value (Remaining)</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stock.map((item) => (
+                    <tr key={item.id}>
+                      <td><strong>{item.name}</strong></td>
+                      <td>{currency(item.unit_price)}</td>
+                      <td><span className="pill blue">{item.quantity}</span></td>
+                      <td><span className="pill green">{item.sold_stock}</span></td>
+                      <td>
+                        <span className={`pill ${item.remaining_stock <= 5 ? 'red' : 'orange'}`}>
+                          {item.remaining_stock}
+                        </span>
+                      </td>
+                      <td>{currency(item.remaining_stock * item.unit_price)}</td>
+                      <td>
+                        <div className="rowActions">
+                          <IconButton onClick={() => setEditing(item)}><Edit3 size={15} /></IconButton>
+                          <IconButton tone="danger" onClick={() => remove(item.id)}><Trash2 size={15} /></IconButton>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <EmptyState title="No stock items found" body="Add stock items above to start tracking your inventory." />
+          )}
+        </Panel>
+      </div>
+    </div>
+  )
+}
+
+function SalesPanel({ sales, stock, accounts, save, remove }) {
+  const [form, setForm] = useState({ stock: '', quantity: '', sale_price: '', date: new Date().toISOString().slice(0, 10), account: '', notes: '' })
+  const [editing, setEditing] = useState(null)
+
+  useEffect(() => {
+    if (editing) {
+      setForm({ stock: String(editing.stock), quantity: editing.quantity, sale_price: editing.sale_price, date: editing.date, account: String(editing.account), notes: editing.notes, id: editing.id })
+    } else {
+      setForm({ stock: '', quantity: '', sale_price: '', date: new Date().toISOString().slice(0, 10), account: accounts.length ? String(accounts[0].id) : '', notes: '' })
+    }
+  }, [editing, accounts])
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    save('sales', form)
+    setEditing(null)
+    setForm({ stock: '', quantity: '', sale_price: '', date: new Date().toISOString().slice(0, 10), account: accounts.length ? String(accounts[0].id) : '', notes: '' })
+  }
+
+  const handleStockChange = (e) => {
+    const selectedStockId = e.target.value
+    const selectedStock = stock.find(s => String(s.id) === selectedStockId)
+    setForm(f => ({
+      ...f,
+      stock: selectedStockId,
+      sale_price: selectedStock ? selectedStock.unit_price : ''
+    }))
+  }
+
+  return (
+    <div className="salesContainer">
+      <Panel title={editing ? "Edit Sale Record" : "Record New Sale"} icon={ShoppingCart}>
+        <form className="salesForm" onSubmit={handleSubmit}>
+          <Field label="Select Stock Item">
+            <select required value={form.stock} onChange={handleStockChange}>
+              <option value="" disabled>Select Item</option>
+              {stock.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name} (Baki: {item.remaining_stock})
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Sale Quantity">
+            <input required type="number" placeholder="Qty sold" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
+          </Field>
+          <Field label="Sale Price (per unit)">
+            <input required type="number" step="any" placeholder="Sale price per unit" value={form.sale_price} onChange={(e) => setForm({ ...form, sale_price: e.target.value })} />
+          </Field>
+          <Field label="Account (Received In)">
+            <select required value={form.account} onChange={(e) => setForm({ ...form, account: e.target.value })}>
+              <option value="" disabled>Select Account</option>
+              {accounts.map((acc) => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.name} ({formatLabel(acc.account_type)})
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Date">
+            <input required type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+          </Field>
+          <Field label="Notes">
+            <input placeholder="Optional sale comments" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+          </Field>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', minHeight: '42px' }}>
+            <button className="primary">{editing ? "Update" : "Record Sale"}</button>
+            {editing && <button type="button" onClick={() => setEditing(null)}>Cancel</button>}
+          </div>
+        </form>
+      </Panel>
+
+      <div style={{ marginTop: '20px' }}>
+        <Panel title="Sales Ledger" icon={ShoppingCart} actions={<span className="panelMeta">{sales.length} sales</span>}>
+          {sales.length ? (
+            <div className="tableWrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Stock Item</th>
+                    <th>Quantity</th>
+                    <th>Sale Price</th>
+                    <th>Total Price</th>
+                    <th>Account</th>
+                    <th>Notes</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sales.map((sale) => (
+                    <tr key={sale.id}>
+                      <td>{sale.date}</td>
+                      <td><strong>{sale.stock_name}</strong></td>
+                      <td>{sale.quantity}</td>
+                      <td>{currency(sale.sale_price)}</td>
+                      <td><strong className="positive">{currency(sale.total_price)}</strong></td>
+                      <td><span className="pill">{sale.account_name}</span></td>
+                      <td><small>{sale.notes || '-'}</small></td>
+                      <td>
+                        <div className="rowActions">
+                          <IconButton onClick={() => setEditing(sale)}><Edit3 size={15} /></IconButton>
+                          <IconButton tone="danger" onClick={() => remove(sale.id)}><Trash2 size={15} /></IconButton>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <EmptyState title="No sales recorded" body="Add product sales above to track transactions." />
+          )}
+        </Panel>
+      </div>
+    </div>
+  )
 }
