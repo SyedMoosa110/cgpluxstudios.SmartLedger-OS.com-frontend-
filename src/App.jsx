@@ -158,7 +158,7 @@ export default function App() {
       setMessage('')
     } catch (error) {
       if (error.response?.status === 401 || error.response?.status === 403) setAuth(null)
-      setMessage(error.response?.data?.detail || 'Backend se data load nahi hua. Server aur login check karein.')
+      setMessage(error.response?.data?.detail || 'Could not load data from backend. Please check server and login.')
     } finally {
       setLoading(false)
     }
@@ -197,7 +197,7 @@ export default function App() {
       setLoginForm({ username: response.data.username, password: '' })
       setMessage('Login successful.')
     } catch {
-      setMessage('Username ya password ghalat hai.')
+      setMessage('Invalid username or password.')
     }
   }
 
@@ -211,7 +211,7 @@ export default function App() {
       setRegisterForm({ business_name: '', owner_name: '', email: '', phone: '', password: '' })
       setMessage('Registration successful.')
     } catch (error) {
-      const errorMsg = error.response?.data?.detail || 'Registration failed. Inputs check karein.'
+      const errorMsg = error.response?.data?.detail || 'Registration failed. Please check your inputs.'
       setMessage(Array.isArray(errorMsg) ? errorMsg.join(' ') : errorMsg)
     }
   }
@@ -260,7 +260,7 @@ export default function App() {
   }
 
   async function remove(resource, id) {
-    const confirmed = window.confirm('Is record ko permanently delete karna hai?')
+    const confirmed = window.confirm('Are you sure you want to permanently delete this record?')
     if (!confirmed) return
     try {
       await prepareCsrf()
@@ -305,7 +305,7 @@ export default function App() {
       setMessage('Password changed.')
     } catch (error) {
       const detail = error.response?.data?.detail
-      setMessage(Array.isArray(detail) ? detail.join(' ') : detail || 'Password change nahi hua.')
+      setMessage(Array.isArray(detail) ? detail.join(' ') : detail || 'Password could not be changed.')
     }
   }
 
@@ -367,7 +367,7 @@ export default function App() {
           <button className="primary"><Plus size={18} /> Create Account</button>
           <div style={{ textAlign: 'center', marginTop: '10px' }}>
             <button type="button" className="textLinkButton" style={{ background: 'none', border: 'none', color: '#0f766e', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }} onClick={() => { setIsRegistering(false); setMessage('') }}>
-              Pehle se account hai? Login
+              Already have an account? Login
             </button>
           </div>
           {message && <p className="message">{message}</p>}
@@ -383,7 +383,7 @@ export default function App() {
         <button className="primary"><Lock size={18} /> Login</button>
         <div style={{ textAlign: 'center', marginTop: '10px' }}>
           <button type="button" className="textLinkButton" style={{ background: 'none', border: 'none', color: '#0f766e', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }} onClick={() => { setIsRegistering(true); setMessage('') }}>
-            Naya account banayein? Create Account
+            Don't have an account? Create Account
           </button>
         </div>
         {message && <p className="message">{message}</p>}
@@ -595,9 +595,9 @@ function StockPanel({ stock, save, remove }) {
                   <tr>
                     <th>Item Name</th>
                     <th>Unit Price</th>
-                    <th>Total Stock (Kitna Hai)</th>
-                    <th>Sold Stock (Sale Hogaya)</th>
-                    <th>Remaining Stock (Baki)</th>
+                    <th>Total Stock</th>
+                    <th>Sold Stock</th>
+                    <th>Remaining Stock</th>
                     <th>Value (Remaining)</th>
                     <th>Action</th>
                   </tr>
@@ -674,7 +674,7 @@ function SalesPanel({ sales, stock, accounts, save, remove, exportSales }) {
               <option value="" disabled>Select Item</option>
               {stock.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {item.name} (Baki: {item.remaining_stock})
+                  {item.name} (Remaining: {item.remaining_stock})
                 </option>
               ))}
             </select>
