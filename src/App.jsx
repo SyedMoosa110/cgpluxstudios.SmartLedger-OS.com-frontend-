@@ -51,6 +51,8 @@ export default function App() {
   const [auth, setAuth] = useState(null)
   const [checkingSession, setCheckingSession] = useState(true)
   const [loginForm, setLoginForm] = useState({ username: 'admin', password: '' })
+  const [isRegistering, setIsRegistering] = useState(false)
+  const [registerForm, setRegisterForm] = useState({ business_name: '', owner_name: '', email: '', phone: '', password: '' })
   const [active, setActive] = useState('Dashboard')
   const [menuOpen, setMenuOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -199,6 +201,21 @@ export default function App() {
     }
   }
 
+  async function register(event) {
+    event.preventDefault()
+    try {
+      await prepareCsrf()
+      const csrfToken = csrfTokenCached;
+      const response = await axios.post(`${apiBase}/auth/register/`, registerForm, { withCredentials: true, headers: { 'X-CSRFToken': csrfToken } })
+      setAuth(response.data)
+      setRegisterForm({ business_name: '', owner_name: '', email: '', phone: '', password: '' })
+      setMessage('Registration successful.')
+    } catch (error) {
+      const errorMsg = error.response?.data?.detail || 'Registration failed. Inputs check karein.'
+      setMessage(Array.isArray(errorMsg) ? errorMsg.join(' ') : errorMsg)
+    }
+  }
+
   async function logout() {
     await api.post('/auth/logout/').catch(() => {})
     setAuth(null)
@@ -338,12 +355,37 @@ export default function App() {
   if (checkingSession) return <main className="loginPage"><div className="loginBox"><p className="message">Checking secure session...</p></div></main>
 
   if (!auth) {
+    if (isRegistering) {
+      return <main className="loginPage">
+        <form className="loginBox" onSubmit={register}>
+          <div className="brand center"><div className="brandMark"><Landmark /></div><div><strong>HisabPro</strong><span>Create Account</span></div></div>
+          <input required value={registerForm.business_name} onChange={(e) => setRegisterForm({ ...registerForm, business_name: e.target.value })} placeholder="Company or Business Name" />
+          <input required value={registerForm.owner_name} onChange={(e) => setRegisterForm({ ...registerForm, owner_name: e.target.value })} placeholder="Owner Name" />
+          <input required type="email" value={registerForm.email} onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })} placeholder="Email Address" />
+          <input required value={registerForm.phone} onChange={(e) => setRegisterForm({ ...registerForm, phone: e.target.value })} placeholder="Phone Number" />
+          <input required type="password" value={registerForm.password} onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })} placeholder="Set Password" />
+          <button className="primary"><Plus size={18} /> Create Account</button>
+          <div style={{ textAlign: 'center', marginTop: '10px' }}>
+            <button type="button" className="textLinkButton" style={{ background: 'none', border: 'none', color: '#0f766e', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }} onClick={() => { setIsRegistering(false); setMessage('') }}>
+              Pehle se account hai? Login
+            </button>
+          </div>
+          {message && <p className="message">{message}</p>}
+        </form>
+      </main>
+    }
+
     return <main className="loginPage">
       <form className="loginBox" onSubmit={login}>
         <div className="brand center"><div className="brandMark"><Landmark /></div><div><strong>HisabPro</strong><span>Admin Login</span></div></div>
-        <input value={loginForm.username} onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })} placeholder="Username" />
+        <input value={loginForm.username} onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })} placeholder="Username or Email" />
         <input type="password" value={loginForm.password} onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })} placeholder="Password" />
         <button className="primary"><Lock size={18} /> Login</button>
+        <div style={{ textAlign: 'center', marginTop: '10px' }}>
+          <button type="button" className="textLinkButton" style={{ background: 'none', border: 'none', color: '#0f766e', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }} onClick={() => { setIsRegistering(true); setMessage('') }}>
+            Naya account banayein? Create Account
+          </button>
+        </div>
         {message && <p className="message">{message}</p>}
       </form>
     </main>
