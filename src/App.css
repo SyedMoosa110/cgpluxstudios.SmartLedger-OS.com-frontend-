@@ -601,6 +601,8 @@ td small {
 .simpleList span {
   flex: 1;
   min-width: 100px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .activityGrid {
