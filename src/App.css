@@ -564,6 +564,10 @@ td small {
   margin-bottom: 14px;
 }
 
+.partiesForm {
+  grid-template-columns: repeat(4, minmax(140px, 1fr)) auto;
+}
+
 .duesForm {
   grid-template-columns: 1.2fr .8fr .8fr .8fr 1fr auto;
 }
