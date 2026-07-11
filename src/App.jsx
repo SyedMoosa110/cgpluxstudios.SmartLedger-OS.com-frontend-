@@ -341,6 +341,40 @@ export default function App() {
     URL.revokeObjectURL(url)
   }
 
+  async function importTransactions(file) {
+    if (!file) return
+    const formData = new FormData()
+    formData.append('file', file)
+    try {
+      await prepareCsrf()
+      await api.post('/import/transactions/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      setLoaded((current) => ({ ...current, Dashboard: false, Transactions: false }))
+      await loadActivePage(true)
+      setMessage('Transactions imported successfully.')
+    } catch (error) {
+      setMessage(error.response?.data?.detail || 'Transactions import failed.')
+    }
+  }
+
+  async function importSales(file) {
+    if (!file) return
+    const formData = new FormData()
+    formData.append('file', file)
+    try {
+      await prepareCsrf()
+      await api.post('/import/sales/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      setLoaded((current) => ({ ...current, Dashboard: false, Sales: false, Stock: false }))
+      await loadActivePage(true)
+      setMessage('Sales imported successfully.')
+    } catch (error) {
+      setMessage(error.response?.data?.detail || 'Sales import failed.')
+    }
+  }
+
 
   const chartData = (data.reports?.by_date || []).reduce((rows, row) => {
     const label = String(row.date)
@@ -443,7 +477,7 @@ export default function App() {
           <Panel title={editingTx ? 'Edit transaction' : 'New income / expense'} icon={Plus}>
             <TransactionForm form={txForm} setForm={setTxForm} save={saveTransaction} accounts={data.accounts} categories={activeCategories} parties={data.parties} editing={editingTx} cancel={() => { setEditingTx(null); setTxForm(emptyTransaction()) }} />
           </Panel>
-          <Ledger filters={filters} setFilters={setFilters} apply={applyFilters} transactions={data.transactions} categories={data.categories} edit={editTransaction} remove={(id) => remove('transactions', id)} exportTx={downloadTransactionExport} />
+          <Ledger filters={filters} setFilters={setFilters} apply={applyFilters} transactions={data.transactions} categories={data.categories} edit={editTransaction} remove={(id) => remove('transactions', id)} exportTx={downloadTransactionExport} importTx={importTransactions} />
         </section>
         <section className="transactionDues">
           <DuesPanel dues={data.dues} parties={data.parties} save={saveSimple} remove={(id) => remove('dues', id)} />
@@ -452,7 +486,7 @@ export default function App() {
 
       {active === 'Categories' && <CategoriesPanel categories={data.categories} save={saveSimple} remove={(id) => remove('categories', id)} />}
       {active === 'Parties/Vendors' && <PartiesPanel parties={data.parties} save={saveSimple} remove={(id) => remove('parties', id)} />}
-      {active === 'Sales' && <SalesPanel sales={data.sales} stock={data.stock} accounts={data.accounts} save={saveSimple} remove={(id) => remove('sales', id)} exportSales={downloadSalesExport} />}
+      {active === 'Sales' && <SalesPanel sales={data.sales} stock={data.stock} accounts={data.accounts} save={saveSimple} remove={(id) => remove('sales', id)} exportSales={downloadSalesExport} importSales={importSales} />}
       {active === 'Stock' && <StockPanel stock={data.stock} save={saveSimple} remove={(id) => remove('stock', id)} />}
       {active === 'Settings' && <SettingsPanel accounts={data.accounts} notes={data.notes} save={saveSimple} remove={remove} changePassword={changePassword} />}
       {active === 'Backup' && <BackupPanel backups={data.backups} createBackup={createBackup} />}
@@ -504,7 +538,7 @@ function TransactionForm({ form, setForm, save, accounts, categories, parties, e
   </form>
 }
 
-function Ledger({ filters, setFilters, apply, transactions, categories, edit, remove, exportTx }) {
+function Ledger({ filters, setFilters, apply, transactions, categories, edit, remove, exportTx, importTx }) {
   const totalCredit = transactions.reduce((sum, tx) => sum + (tx.transaction_type === 'income' ? Number(tx.amount) : 0), 0)
   const totalDebit = transactions.reduce((sum, tx) => sum + (tx.transaction_type === 'expense' ? Number(tx.amount) : 0), 0)
   return <Panel title="Ledger / account book" icon={ReceiptText} actions={<span className="panelMeta">{transactions.length} entries</span>}>
@@ -519,6 +553,10 @@ function Ledger({ filters, setFilters, apply, transactions, categories, edit, re
     <div className="exportGrid">
       <button onClick={() => exportTx('excel')}><FileSpreadsheet /> Excel export</button>
       <button onClick={() => exportTx('pdf')}><FileText /> PDF report</button>
+      <label className="importLabel">
+        <Upload size={16} /> Import Excel
+        <input type="file" accept=".xlsx" onChange={(e) => importTx(e.target.files[0])} style={{ display: 'none' }} />
+      </label>
     </div>
     {transactions.length ? <div className="tableWrap"><table><thead><tr><th>Date</th><th>Details</th><th>Category</th><th>Debit</th><th>Credit</th><th>Proof</th><th>Action</th></tr></thead><tbody>{transactions.map((tx) => <tr key={tx.id}><td>{tx.date}</td><td><strong>{tx.title}</strong><small>{tx.party_name || 'No party'}{tx.reference_number ? ` - ${tx.reference_number}` : ''}</small></td><td><span className="pill">{tx.category_name}</span></td><td className="negative">{tx.transaction_type === 'expense' ? currency(tx.amount) : '-'}</td><td className="positive">{tx.transaction_type === 'income' ? currency(tx.amount) : '-'}</td><td>{tx.attachment ? <a className="textLink" href={tx.attachment} target="_blank" rel="noreferrer">Open</a> : '-'}</td><td><div className="rowActions"><IconButton onClick={() => edit(tx)}><Edit3 size={15} /></IconButton><IconButton tone="danger" onClick={() => remove(tx.id)}><Trash2 size={15} /></IconButton></div></td></tr>)}</tbody></table></div> : <EmptyState title="No transactions found" body="Add a new entry or adjust filters to see ledger records." />}
   </Panel>
@@ -650,7 +688,7 @@ function StockPanel({ stock, save, remove }) {
   )
 }
 
-function SalesPanel({ sales, stock, accounts, save, remove, exportSales }) {
+function SalesPanel({ sales, stock, accounts, save, remove, exportSales, importSales }) {
   const [form, setForm] = useState({ stock: '', quantity: '', sale_price: '', date: new Date().toISOString().slice(0, 10), account: '', notes: '', customer_name: '', customer_phone: '', customer_address: '' })
   const [editing, setEditing] = useState(null)
   const [activeInvoice, setActiveInvoice] = useState(null)
@@ -768,6 +806,10 @@ function SalesPanel({ sales, stock, accounts, save, remove, exportSales }) {
           <div className="exportGrid">
             <button onClick={() => exportSales('excel')}><FileSpreadsheet /> Excel export</button>
             <button onClick={() => exportSales('pdf')}><FileText /> PDF report</button>
+            <label className="importLabel">
+              <Upload size={16} /> Import Excel
+              <input type="file" accept=".xlsx" onChange={(e) => importSales(e.target.files[0])} style={{ display: 'none' }} />
+            </label>
           </div>
           {sales.length ? (
             <div className="tableWrap">

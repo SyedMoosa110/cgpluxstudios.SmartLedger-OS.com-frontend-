@@ -408,7 +408,8 @@ textarea:focus {
 .formActions button,
 .filters button,
 .exportGrid button,
-.inlineForm button {
+.inlineForm button,
+.importLabel {
   min-height: 42px;
   border: 1px solid #cfd9e7;
   border-radius: 8px;
@@ -420,6 +421,14 @@ textarea:focus {
   background: #ffffff;
   color: #172033;
   text-decoration: none;
+  cursor: pointer;
+  box-sizing: border-box;
+  font-size: 14px;
+}
+
+.importLabel:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
 }
 
 .primary {
@@ -478,7 +487,7 @@ textarea:focus {
 
 .exportGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 8px;
   margin-bottom: 14px;
 }
