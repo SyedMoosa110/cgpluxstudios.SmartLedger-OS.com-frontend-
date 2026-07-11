@@ -13,7 +13,7 @@ const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api'
 const navItems = [
   ['Dashboard', LayoutDashboard], ['Transactions', BookOpen], ['Categories', Tags],
   ['Parties/Vendors', Users], ['Sales', ShoppingCart], ['Stock', Package],
-  ['Settings', Settings], ['Backup', Download],
+  ['Settings', Settings],
 ]
 const pageCopy = {
   Dashboard: 'Business overview, account balances, and recent money movement.',
@@ -23,7 +23,6 @@ const pageCopy = {
   Sales: 'Track product sales, record custom sales, and manage sales revenue.',
   Stock: 'Monitor inventory levels, view total, sold, and remaining stock.',
   Settings: 'Manage accounts, reminders, and admin access.',
-  Backup: 'Create and review database backups.',
 }
 
 function currency(value) {
@@ -57,8 +56,8 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
-  const [data, setData] = useState({ dashboard: null, reports: null, accounts: [], categories: [], parties: [], transactions: [], dues: [], notes: [], backups: [], sales: [], stock: [] })
-  const [loaded, setLoaded] = useState({ refs: false, Dashboard: false, Transactions: false, Categories: false, 'Parties/Vendors': false, Settings: false, Backup: false, Sales: false, Stock: false })
+  const [data, setData] = useState({ dashboard: null, reports: null, accounts: [], categories: [], parties: [], transactions: [], dues: [], notes: [], sales: [], stock: [] })
+  const [loaded, setLoaded] = useState({ refs: false, Dashboard: false, Transactions: false, Categories: false, 'Parties/Vendors': false, Settings: false, Sales: false, Stock: false })
   const [filters, setFilters] = useState({ keyword: '', category: '', payment_method: '', start: '', end: '', min_amount: '', max_amount: '' })
   const [appliedFilters, setAppliedFilters] = useState(filters)
   const [txForm, setTxForm] = useState(emptyTransaction())
@@ -141,10 +140,6 @@ export default function App() {
         const [accounts, notes] = await Promise.all([api.get('/accounts/'), api.get('/notes/')])
         mergeData({ accounts: accounts.data, notes: notes.data })
       }
-      if (active === 'Backup') {
-        const backups = await api.get('/backups/')
-        mergeData({ backups: backups.data })
-      }
       if (active === 'Sales') {
         await loadReferenceData()
         const [sales, stock] = await Promise.all([api.get('/sales/'), api.get('/stock/')])
@@ -219,8 +214,8 @@ export default function App() {
   async function logout() {
     await api.post('/auth/logout/').catch(() => {})
     setAuth(null)
-    setData({ dashboard: null, reports: null, accounts: [], categories: [], parties: [], transactions: [], dues: [], notes: [], backups: [] })
-    setLoaded({ refs: false, Dashboard: false, Transactions: false, Categories: false, 'Parties/Vendors': false, Settings: false, Backup: false })
+    setData({ dashboard: null, reports: null, accounts: [], categories: [], parties: [], transactions: [], dues: [], notes: [] })
+    setLoaded({ refs: false, Dashboard: false, Transactions: false, Categories: false, 'Parties/Vendors': false, Settings: false })
     setMessage('Logged out.')
   }
 
@@ -265,7 +260,7 @@ export default function App() {
     try {
       await prepareCsrf()
       await api.delete(`/${resource}/${id}/`)
-      setLoaded((current) => ({ ...current, refs: false, Dashboard: false, Transactions: false, Categories: false, 'Parties/Vendors': false, Settings: false, Backup: false, Sales: false, Stock: false }))
+      setLoaded((current) => ({ ...current, refs: false, Dashboard: false, Transactions: false, Categories: false, 'Parties/Vendors': false, Settings: false, Sales: false, Stock: false }))
       await loadActivePage(true)
       setMessage('Record deleted from backend.')
     } catch (error) {
@@ -281,7 +276,7 @@ export default function App() {
       } else {
         await api.post(`/${resource}/`, payload)
       }
-      setLoaded((current) => ({ ...current, refs: false, Dashboard: false, Transactions: false, Categories: false, 'Parties/Vendors': false, Settings: false, Backup: false, Sales: false, Stock: false }))
+      setLoaded((current) => ({ ...current, refs: false, Dashboard: false, Transactions: false, Categories: false, 'Parties/Vendors': false, Settings: false, Sales: false, Stock: false }))
       await loadActivePage(true)
       setMessage('Record saved in backend.')
     } catch (error) {
@@ -309,16 +304,6 @@ export default function App() {
     }
   }
 
-  async function createBackup() {
-    try {
-      await prepareCsrf()
-      await api.post('/backup/create/', { backup_type: 'manual', notes: 'Created from dashboard' })
-      await loadActivePage(true)
-      setMessage('Database backup created.')
-    } catch (error) {
-      setMessage(error.response?.data?.detail || 'Backup failed.')
-    }
-  }
 
   async function downloadTransactionExport(type) {
     const query = new URLSearchParams(Object.entries(appliedFilters).filter(([, v]) => v)).toString()
@@ -516,7 +501,6 @@ export default function App() {
       {active === 'Sales' && <SalesPanel sales={data.sales} stock={data.stock} accounts={data.accounts} save={saveSimple} remove={(id) => remove('sales', id)} exportSales={downloadSalesExport} importSales={importSales} />}
       {active === 'Stock' && <StockPanel stock={data.stock} save={saveSimple} remove={(id) => remove('stock', id)} exportStock={downloadStockExport} importStock={importStock} />}
       {active === 'Settings' && <SettingsPanel accounts={data.accounts} notes={data.notes} save={saveSimple} remove={remove} changePassword={changePassword} />}
-      {active === 'Backup' && <BackupPanel backups={data.backups} createBackup={createBackup} />}
     </main>
   </div>
 }
@@ -620,10 +604,6 @@ function SettingsPanel({ accounts, notes, save, remove, changePassword }) {
     <h3 className="sectionLabel">Accounts</h3><SimpleRows emptyTitle="No accounts yet" emptyBody="Add an account to begin tracking balances." rows={accounts.map((a) => [a.id, a.name, formatLabel(a.account_type), currency(a.current_balance)])} remove={(id) => remove('accounts', id)} />
     <h3 className="sectionLabel">Notes</h3><SimpleRows emptyTitle="No notes yet" emptyBody="Create reminders for follow-ups or payments." rows={notes.map((n) => [n.id, n.title, n.body, n.reminder_date])} remove={(id) => remove('notes', id)} />
   </Panel>
-}
-
-function BackupPanel({ backups, createBackup }) {
-  return <Panel title="Backup system" icon={Download} actions={<span className="panelMeta">{backups.length} backups</span>}><div className="backupBox"><div><strong>Database backup</strong><p>Create a fresh copy before major edits or at the end of the day.</p></div><button className="primary" onClick={createBackup}><Download size={18} /> Create backup</button></div><SimpleRows emptyTitle="No backups yet" emptyBody="Created backups will be listed here." rows={backups.map((b) => [b.id, formatLabel(b.backup_type), b.file, b.created_at])} /></Panel>
 }
 
 function SimpleRows({ rows, remove, emptyTitle = 'No records', emptyBody = 'Records will appear here.' }) {

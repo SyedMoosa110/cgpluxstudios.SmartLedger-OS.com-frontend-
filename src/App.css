@@ -659,23 +659,6 @@ td small {
   color: #172033;
 }
 
-.backupBox {
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 14px;
-  background: #f8fafc;
-}
-
-.backupBox p {
-  margin: 4px 0 0;
-  color: #64748b;
-}
-
 .loginPage {
   min-height: 100vh;
   display: grid;
@@ -894,7 +877,6 @@ td small {
     padding: 14px;
   }
 
-  .backupBox,
   .simpleList div,
   .dueList div,
   .accountList div {
@@ -903,7 +885,6 @@ td small {
     gap: 10px;
   }
 
-  .backupBox button,
   .simpleList div button,
   .dueList div button,
   .accountList div button {
