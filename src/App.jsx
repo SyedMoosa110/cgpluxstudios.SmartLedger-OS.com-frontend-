@@ -50,7 +50,7 @@ function formatLabel(value) {
 export default function App() {
   const [auth, setAuth] = useState(null)
   const [checkingSession, setCheckingSession] = useState(true)
-  const [loginForm, setLoginForm] = useState({ username: 'admin', password: '' })
+  const [loginForm, setLoginForm] = useState({ username: '', password: '' })
   const [isRegistering, setIsRegistering] = useState(false)
   const [registerForm, setRegisterForm] = useState({ business_name: '', owner_name: '', email: '', phone: '', password: '' })
   const [active, setActive] = useState('Dashboard')
@@ -207,9 +207,9 @@ export default function App() {
       await prepareCsrf()
       const csrfToken = csrfTokenCached;
       const response = await axios.post(`${apiBase}/auth/register/`, registerForm, { withCredentials: true, headers: { 'X-CSRFToken': csrfToken } })
-      setAuth(response.data)
       setRegisterForm({ business_name: '', owner_name: '', email: '', phone: '', password: '' })
-      setMessage('Registration successful.')
+      setIsRegistering(false)
+      setMessage(response.data?.detail || 'Registration successful! Please login.')
     } catch (error) {
       const errorMsg = error.response?.data?.detail || 'Registration failed. Please check your inputs.'
       setMessage(Array.isArray(errorMsg) ? errorMsg.join(' ') : errorMsg)
@@ -378,7 +378,7 @@ export default function App() {
     return <main className="loginPage">
       <form className="loginBox" onSubmit={login}>
         <div className="brand center"><div className="brandMark"><Landmark /></div><div><strong>HisabPro</strong><span>Admin Login</span></div></div>
-        <input value={loginForm.username} onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })} placeholder="Username or Email" />
+        <input value={loginForm.username} onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })} placeholder="Email, Username or Business Name" />
         <input type="password" value={loginForm.password} onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })} placeholder="Password" />
         <button className="primary"><Lock size={18} /> Login</button>
         <div style={{ textAlign: 'center', marginTop: '10px' }}>
@@ -418,6 +418,9 @@ export default function App() {
       {message && <div className="notice">{message}</div>}
 
       {active === 'Dashboard' && <>
+        <div className="dashboard-brand-header">
+          <h2>{auth?.company_name || 'Workspace'} Ka Hisab Dashboard</h2>
+        </div>
         <section className="statsGrid">
           <Metric icon={WalletCards} label="Current balance" value={currency(totals.current_balance)} tone="blue" />
           <Metric icon={ArrowUpCircle} label="Total income" value={currency(totals.income)} tone="green" />
