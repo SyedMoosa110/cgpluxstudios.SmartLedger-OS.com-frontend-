@@ -46,6 +46,105 @@ function formatLabel(value) {
   return String(value || '').replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
 
+const themePresets = {
+  original: {
+    '--primary-color': '#0f766e',
+    '--primary-hover': '#115e59',
+    '--primary-text': '#ffffff',
+    '--bg-color': '#f3f6fa',
+    '--text-color': '#111827',
+    '--sidebar-bg': '#0f172a',
+    '--sidebar-text': '#f8fafc',
+    '--sidebar-hover': '#25344f',
+    '--sidebar-border': 'rgba(255, 255, 255, 0.08)',
+    '--panel-bg': '#ffffff',
+    '--panel-border': '1px solid #dfe6ef',
+    '--panel-radius': '8px',
+    '--panel-shadow': '0 12px 26px rgba(15, 23, 42, 0.05)',
+    '--card-glow': 'none',
+  },
+  glassmorphism: {
+    '--primary-color': '#6366f1',
+    '--primary-hover': '#4f46e5',
+    '--primary-text': '#ffffff',
+    '--bg-color': 'linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%)',
+    '--text-color': '#1e1b4b',
+    '--sidebar-bg': 'rgba(15, 23, 42, 0.85)',
+    '--sidebar-text': '#f8fafc',
+    '--sidebar-hover': 'rgba(255, 255, 255, 0.1)',
+    '--sidebar-border': 'rgba(255, 255, 255, 0.15)',
+    '--panel-bg': 'rgba(255, 255, 255, 0.45)',
+    '--panel-border': '1px solid rgba(255, 255, 255, 0.4)',
+    '--panel-radius': '16px',
+    '--panel-shadow': '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
+    '--card-glow': 'inset 0 0 0 1px rgba(255, 255, 255, 0.5)',
+  },
+  dark: {
+    '--primary-color': '#14b8a6',
+    '--primary-hover': '#0d9488',
+    '--primary-text': '#0b0f19',
+    '--bg-color': '#0b0f19',
+    '--text-color': '#f3f4f6',
+    '--sidebar-bg': '#111827',
+    '--sidebar-text': '#f3f4f6',
+    '--sidebar-hover': '#1f2937',
+    '--sidebar-border': '#1f2937',
+    '--panel-bg': '#161e2e',
+    '--panel-border': '1px solid #243048',
+    '--panel-radius': '10px',
+    '--panel-shadow': '0 4px 20px rgba(0, 0, 0, 0.3)',
+    '--card-glow': 'none',
+  },
+  brutalism: {
+    '--primary-color': '#facc15',
+    '--primary-hover': '#eab308',
+    '--primary-text': '#000000',
+    '--bg-color': '#cbd5e1',
+    '--text-color': '#000000',
+    '--sidebar-bg': '#f3f4f6',
+    '--sidebar-text': '#000000',
+    '--sidebar-hover': '#e5e7eb',
+    '--sidebar-border': '3px solid #000000',
+    '--panel-bg': '#ffffff',
+    '--panel-border': '3px solid #000000',
+    '--panel-radius': '0px',
+    '--panel-shadow': '5px 5px 0px #000000',
+    '--card-glow': 'none',
+  },
+  cyberpunk: {
+    '--primary-color': '#ff007f',
+    '--primary-hover': '#d00068',
+    '--primary-text': '#ffffff',
+    '--bg-color': '#05050a',
+    '--text-color': '#00ffff',
+    '--sidebar-bg': '#09090f',
+    '--sidebar-text': '#ff007f',
+    '--sidebar-hover': '#161622',
+    '--sidebar-border': '1px solid #ff007f',
+    '--panel-bg': '#0d0d18',
+    '--panel-border': '1px solid #00ffff',
+    '--panel-radius': '4px',
+    '--panel-shadow': '0 0 10px rgba(0, 255, 255, 0.25)',
+    '--card-glow': '0 0 5px rgba(255, 0, 127, 0.2)',
+  },
+  pastel: {
+    '--primary-color': '#fda4af',
+    '--primary-hover': '#f43f5e',
+    '--primary-text': '#4c0519',
+    '--bg-color': '#fafaf9',
+    '--text-color': '#44403c',
+    '--sidebar-bg': '#f5f5f4',
+    '--sidebar-text': '#44403c',
+    '--sidebar-hover': '#e7e5e4',
+    '--sidebar-border': '1px solid #e7e5e4',
+    '--panel-bg': '#fffbeb',
+    '--panel-border': '1px solid #f5f5f4',
+    '--panel-radius': '20px',
+    '--panel-shadow': '0 10px 20px rgba(120, 113, 108, 0.04)',
+    '--card-glow': 'none',
+  }
+}
+
 export default function App() {
   const [auth, setAuth] = useState(null)
   const [checkingSession, setCheckingSession] = useState(true)
@@ -56,6 +155,59 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
+  
+  // Customization States
+  const [themeStyle, setThemeStyle] = useState(() => localStorage.getItem('themeStyle') || 'original')
+  const [customColors, setCustomColors] = useState(() => {
+    try {
+      const saved = localStorage.getItem('customColors')
+      return saved ? JSON.parse(saved) : { primary: '', bg: '', text: '', sidebarBg: '', sidebarText: '', panelBg: '' }
+    } catch {
+      return { primary: '', bg: '', text: '', sidebarBg: '', sidebarText: '', panelBg: '' }
+    }
+  })
+
+  useEffect(() => {
+    localStorage.setItem('themeStyle', themeStyle)
+  }, [themeStyle])
+
+  useEffect(() => {
+    localStorage.setItem('customColors', JSON.stringify(customColors))
+  }, [customColors])
+
+  useEffect(() => {
+    const root = document.documentElement
+    const preset = themePresets[themeStyle] || themePresets.original
+    
+    // Apply presets
+    Object.entries(preset).forEach(([key, val]) => {
+      root.style.setProperty(key, val)
+    })
+    
+    // Apply custom overrides
+    if (customColors.primary) {
+      root.style.setProperty('--primary-color', customColors.primary)
+      // Create a slightly darker color for hover
+      root.style.setProperty('--primary-hover', customColors.primary + 'e6')
+    }
+    if (customColors.bg) {
+      root.style.setProperty('--bg-color', customColors.bg)
+    }
+    if (customColors.panelBg) {
+      root.style.setProperty('--panel-bg', customColors.panelBg)
+    }
+    if (customColors.text) {
+      root.style.setProperty('--text-color', customColors.text)
+    }
+    if (customColors.sidebarBg) {
+      root.style.setProperty('--sidebar-bg', customColors.sidebarBg)
+      root.style.setProperty('--sidebar-hover', customColors.sidebarBg + 'cc')
+    }
+    if (customColors.sidebarText) {
+      root.style.setProperty('--sidebar-text', customColors.sidebarText)
+    }
+  }, [themeStyle, customColors])
+
   const [data, setData] = useState({ dashboard: null, reports: null, accounts: [], categories: [], parties: [], transactions: [], dues: [], notes: [], sales: [], stock: [] })
   const [loaded, setLoaded] = useState({ refs: false, Dashboard: false, Transactions: false, Categories: false, 'Parties/Vendors': false, Settings: false, Sales: false, Stock: false })
   const [filters, setFilters] = useState({ keyword: '', category: '', payment_method: '', start: '', end: '', min_amount: '', max_amount: '' })
@@ -500,7 +652,7 @@ export default function App() {
       {active === 'Parties/Vendors' && <PartiesPanel parties={data.parties} save={saveSimple} remove={(id) => remove('parties', id)} />}
       {active === 'Sales' && <SalesPanel sales={data.sales} stock={data.stock} accounts={data.accounts} save={saveSimple} remove={(id) => remove('sales', id)} exportSales={downloadSalesExport} importSales={importSales} />}
       {active === 'Stock' && <StockPanel stock={data.stock} save={saveSimple} remove={(id) => remove('stock', id)} exportStock={downloadStockExport} importStock={importStock} />}
-      {active === 'Settings' && <SettingsPanel accounts={data.accounts} notes={data.notes} save={saveSimple} remove={remove} changePassword={changePassword} />}
+      {active === 'Settings' && <SettingsPanel accounts={data.accounts} notes={data.notes} save={saveSimple} remove={remove} changePassword={changePassword} themeStyle={themeStyle} setThemeStyle={setThemeStyle} customColors={customColors} setCustomColors={setCustomColors} />}
     </main>
   </div>
 }
@@ -592,10 +744,118 @@ function DuesPanel({ dues, parties, save, remove }) {
   return <Panel title="Due payments" icon={Clock3} actions={<span className="panelMeta">{dues.length} pending items</span>}><form className="inlineForm duesForm" onSubmit={(e) => { e.preventDefault(); save('dues', form); setForm({ ...form, title: '', amount: '' }) }}><Field label="Title"><input required placeholder="Payment detail" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></Field><Field label="Type"><select value={form.due_type} onChange={(e) => setForm({ ...form, due_type: e.target.value })}><option value="payable">Payable</option><option value="receivable">Receivable</option></select></Field><Field label="Amount"><input required type="number" step="any" placeholder="0" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></Field><Field label="Due date"><input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} /></Field><Field label="Party"><select value={form.party} onChange={(e) => setForm({ ...form, party: e.target.value })}><option value="">No party</option>{parties.map((p) => <option value={p.id} key={p.id}>{p.name}</option>)}</select></Field><button className="primary">Add due</button></form>{dues.length ? <div className="dueList">{dues.map((d) => <div key={d.id}><span>{d.title}<small>{d.party_name || 'No party'} - {d.due_date} - {formatLabel(d.status)}</small></span><strong>{currency(d.amount)}</strong><IconButton tone="danger" onClick={() => remove(d.id)}><Trash2 size={15} /></IconButton></div>)}</div> : <EmptyState title="No due payments" body="Payables and receivables will appear here." />}</Panel>
 }
 
-function SettingsPanel({ accounts, notes, save, remove, changePassword }) {
+function SettingsPanel({ accounts, notes, save, remove, changePassword, themeStyle, setThemeStyle, customColors, setCustomColors }) {
   const [note, setNote] = useState({ title: '', body: '', reminder_date: '' })
   const [account, setAccount] = useState({ name: '', account_type: 'cash', opening_balance: 0, is_active: true })
+
+  const updateColor = (key, value) => {
+    setCustomColors(prev => ({ ...prev, [key]: value }))
+  }
+
+  const resetCustomization = () => {
+    setThemeStyle('original')
+    setCustomColors({ primary: '', bg: '', text: '', sidebarBg: '', sidebarText: '', panelBg: '' })
+  }
+
+  const themesList = [
+    { id: 'original', name: 'Original Light', desc: 'Default layout styling.', color1: '#0f766e', color2: '#f3f6fa' },
+    { id: 'glassmorphism', name: 'Glassmorphism', desc: 'Frosted glass & gradient.', color1: '#6366f1', color2: '#e0e7ff' },
+    { id: 'dark', name: 'Dark & Sleek', desc: 'Midnight dark aesthetic.', color1: '#14b8a6', color2: '#0b0f19' },
+    { id: 'brutalism', name: 'Neo-Brutalism', desc: 'High-contrast bold borders.', color1: '#facc15', color2: '#cbd5e1' },
+    { id: 'cyberpunk', name: 'Cyberpunk Synthwave', desc: 'Futuristic glowing neon.', color1: '#ff007f', color2: '#05050a' },
+    { id: 'pastel', name: 'Soft Pastel', desc: 'Cozy and sweet pastel theme.', color1: '#fda4af', color2: '#fafaf9' },
+  ]
+
   return <Panel title="Admin login and settings" icon={Settings}>
+    <div className="customization-card" style={{ padding: '20px', border: 'var(--panel-border)', borderRadius: 'var(--panel-radius)', background: 'var(--panel-bg)', marginBottom: '24px', transition: 'all var(--transition-speed)' }}>
+      <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-color)' }}>
+        🎨 Personalization & Theme Styles
+      </h3>
+      
+      {/* Theme selection grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: '20px' }}>
+        {themesList.map(t => (
+          <div 
+            key={t.id} 
+            onClick={() => setThemeStyle(t.id)}
+            style={{
+              padding: '14px',
+              borderRadius: 'var(--panel-radius)',
+              border: themeStyle === t.id ? '2px solid var(--primary-color)' : 'var(--panel-border)',
+              background: 'var(--bg-color)',
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              transition: 'all var(--transition-speed)',
+              boxShadow: themeStyle === t.id ? '0 4px 12px rgba(0,0,0,0.1)' : 'none'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontWeight: 'bold', fontSize: '14px', color: 'var(--text-color)' }}>{t.name}</span>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: t.color1 }} />
+                <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: t.color2, border: '1px solid #ccc' }} />
+              </div>
+            </div>
+            <span style={{ fontSize: '12px', color: 'var(--text-color)', opacity: 0.8 }}>{t.desc}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Individual color pickers */}
+      <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: 'var(--text-color)' }}>✨ Custom Element Colors</h4>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', marginBottom: '16px' }}>
+        <Field label="Accent (Primary)">
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            <input type="color" value={customColors.primary || '#0f766e'} onChange={(e) => updateColor('primary', e.target.value)} style={{ padding: '0', width: '38px', height: '38px', cursor: 'pointer', border: 'none', borderRadius: '4px', background: 'transparent' }} />
+            <input type="text" value={customColors.primary || ''} placeholder="Default" onChange={(e) => updateColor('primary', e.target.value)} style={{ fontSize: '12px', height: '34px', minHeight: '34px' }} />
+          </div>
+        </Field>
+        
+        <Field label="Page Background">
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            <input type="color" value={customColors.bg || '#f3f6fa'} onChange={(e) => updateColor('bg', e.target.value)} style={{ padding: '0', width: '38px', height: '38px', cursor: 'pointer', border: 'none', borderRadius: '4px', background: 'transparent' }} />
+            <input type="text" value={customColors.bg || ''} placeholder="Default" onChange={(e) => updateColor('bg', e.target.value)} style={{ fontSize: '12px', height: '34px', minHeight: '34px' }} />
+          </div>
+        </Field>
+
+        <Field label="Panel/Card BG">
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            <input type="color" value={customColors.panelBg || '#ffffff'} onChange={(e) => updateColor('panelBg', e.target.value)} style={{ padding: '0', width: '38px', height: '38px', cursor: 'pointer', border: 'none', borderRadius: '4px', background: 'transparent' }} />
+            <input type="text" value={customColors.panelBg || ''} placeholder="Default" onChange={(e) => updateColor('panelBg', e.target.value)} style={{ fontSize: '12px', height: '34px', minHeight: '34px' }} />
+          </div>
+        </Field>
+
+        <Field label="Text Color">
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            <input type="color" value={customColors.text || '#111827'} onChange={(e) => updateColor('text', e.target.value)} style={{ padding: '0', width: '38px', height: '38px', cursor: 'pointer', border: 'none', borderRadius: '4px', background: 'transparent' }} />
+            <input type="text" value={customColors.text || ''} placeholder="Default" onChange={(e) => updateColor('text', e.target.value)} style={{ fontSize: '12px', height: '34px', minHeight: '34px' }} />
+          </div>
+        </Field>
+
+        <Field label="Sidebar Background">
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            <input type="color" value={customColors.sidebarBg || '#0f172a'} onChange={(e) => updateColor('sidebarBg', e.target.value)} style={{ padding: '0', width: '38px', height: '38px', cursor: 'pointer', border: 'none', borderRadius: '4px', background: 'transparent' }} />
+            <input type="text" value={customColors.sidebarBg || ''} placeholder="Default" onChange={(e) => updateColor('sidebarBg', e.target.value)} style={{ fontSize: '12px', height: '34px', minHeight: '34px' }} />
+          </div>
+        </Field>
+
+        <Field label="Sidebar Text">
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            <input type="color" value={customColors.sidebarText || '#f8fafc'} onChange={(e) => updateColor('sidebarText', e.target.value)} style={{ padding: '0', width: '38px', height: '38px', cursor: 'pointer', border: 'none', borderRadius: '4px', background: 'transparent' }} />
+            <input type="text" value={customColors.sidebarText || ''} placeholder="Default" onChange={(e) => updateColor('sidebarText', e.target.value)} style={{ fontSize: '12px', height: '34px', minHeight: '34px' }} />
+          </div>
+        </Field>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <button type="button" onClick={resetCustomization} style={{ fontSize: '13px', minHeight: '34px', background: 'transparent', border: '1px solid var(--primary-color)', color: 'var(--primary-color)', borderRadius: 'var(--panel-radius)', cursor: 'pointer', padding: '0 12px', transition: 'all var(--transition-speed)' }}>
+          Reset to default theme
+        </button>
+      </div>
+    </div>
+
     <div className="settingsStack">
       <form className="inlineForm" onSubmit={changePassword}><Field label="Old password"><input required type="password" name="old_password" placeholder="Current password" /></Field><Field label="New password"><input required type="password" name="new_password" placeholder="New secure password" /></Field><button className="primary">Change password</button></form>
       <form className="inlineForm" onSubmit={(e) => { e.preventDefault(); save('accounts', account); setAccount({ ...account, name: '', opening_balance: 0 }) }}><Field label="Account name"><input required placeholder="Cash counter, Bank account" value={account.name} onChange={(e) => setAccount({ ...account, name: e.target.value })} /></Field><Field label="Type"><select value={account.account_type} onChange={(e) => setAccount({ ...account, account_type: e.target.value })}><option value="cash">Cash</option><option value="bank">Bank</option><option value="easypaisa">Easypaisa</option><option value="jazzcash">JazzCash</option></select></Field><Field label="Opening balance"><input type="number" step="any" placeholder="0" value={account.opening_balance} onChange={(e) => setAccount({ ...account, opening_balance: e.target.value })} /></Field><button className="primary">Add account</button></form>
