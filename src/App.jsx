@@ -335,6 +335,24 @@ export default function App() {
     checkSession()
   }, [])
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const authStatus = params.get('auth')
+    const errorStatus = params.get('error')
+    const hasBackupPath = window.location.pathname.includes('/backup')
+
+    if (hasBackupPath || authStatus || errorStatus) {
+      setActive('Backup Settings')
+      if (authStatus === 'success') {
+        setMessage('Google Drive connected successfully!')
+      } else if (errorStatus) {
+        setMessage(`Backup authentication failed: ${errorStatus}`)
+      }
+      // Clean URL parameters and path without page reload
+      window.history.replaceState({}, document.title, window.location.origin + '/')
+    }
+  }, [])
+
   useEffect(() => { loadActivePage() }, [loadActivePage])
 
   function applyFilters() {
@@ -1380,7 +1398,7 @@ function BackupPanel({ settings, history, api, onRefresh, setMessage }) {
                             color: record.status === 'success' ? '#15803d' : record.status === 'pending' ? '#b45309' : '#b91c1c'
                           }}
                         >
-                          {record.status.toUpperCase()}
+                          {(record.status || 'pending').toUpperCase()}
                         </span>
                       </td>
                       <td style={{ fontSize: '12px', color: '#dc2626' }}>
