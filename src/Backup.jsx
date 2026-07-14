@@ -88,6 +88,22 @@ export default function BackupPanel() {
     }
   };
 
+  const handleDisconnect = async () => {
+    const confirmed = window.confirm("Disconnect Google Drive?\n\nThis will remove the saved Google account from this application.\nYour backups stored in Google Drive will NOT be deleted.");
+    if (!confirmed) return;
+    
+    try {
+      const res = await axios.post(`${apiBase}/backup/disconnect/`, {}, { withCredentials: true });
+      if (res.data.success) {
+        alert('Google Drive disconnected successfully.');
+        setStatus(prev => ({ ...prev, connected: false, email: null }));
+        fetchLogs();
+      }
+    } catch (e) {
+      alert(e.response?.data?.error || 'Failed to disconnect');
+    }
+  };
+
   const formatBytes = (bytes, decimals = 2) => {
     if (!+bytes) return '0 Bytes';
     const k = 1024;
@@ -129,6 +145,9 @@ export default function BackupPanel() {
                 <button className="primary" onClick={handleTrigger} disabled={isBackingUp}>
                   <Play size={16} style={{marginRight: '8px'}} />
                   {isBackingUp ? 'Backing up...' : 'Backup Now'}
+                </button>
+                <button style={{ background: '#ef4444', color: 'white', padding: '8px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer' }} onClick={handleDisconnect} disabled={isBackingUp}>
+                  Disconnect Google Drive
                 </button>
               </div>
             </div>
