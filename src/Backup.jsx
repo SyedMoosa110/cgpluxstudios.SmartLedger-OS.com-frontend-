@@ -67,8 +67,10 @@ export default function BackupPanel() {
   const handleConnect = async () => {
     try {
       const res = await axios.get(`${apiBase}/backup/auth/url/`, { withCredentials: true });
-      if (res.data.url) {
-        window.location.href = res.data.url;
+      if (res.data.success && res.data.auth_url) {
+        window.location.href = res.data.auth_url;
+      } else if (res.data.success === false) {
+        alert(`${res.data.message || res.data.error}\n\nMissing: ${res.data.missing?.join(', ') || ''}`);
       }
     } catch (e) {
       alert('Failed to get auth URL');
@@ -103,6 +105,13 @@ export default function BackupPanel() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {status?.success === false && (
+        <div style={{ padding: '15px', background: '#fef2f2', border: '1px solid #f87171', color: '#b91c1c', borderRadius: '6px' }}>
+          <AlertCircle size={20} style={{ verticalAlign: 'middle', marginRight: '10px' }} />
+          <strong>System Warning:</strong> {status.error || status.message}
+        </div>
+      )}
+
       <section className="statsGrid">
         <Metric icon={Cloud} label="Google Drive" value={status?.connected ? 'Connected' : 'Disconnected'} tone={status?.connected ? 'green' : 'amber'} />
         <Metric icon={Database} label="Last Backup" value={status?.last_backup_date ? new Date(status.last_backup_date).toLocaleString() : 'Never'} tone="blue" />
