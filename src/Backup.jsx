@@ -98,9 +98,11 @@ export default function BackupPanel() {
         alert('Google Drive disconnected successfully.');
         setStatus(prev => ({ ...prev, connected: false, email: null }));
         fetchLogs();
+      } else {
+        alert(`Disconnect failed\n\nReason:\n${res.data.message || res.data.error || 'Unknown error'}`);
       }
     } catch (e) {
-      alert(e.response?.data?.error || 'Failed to disconnect');
+      alert(`Disconnect failed\n\nReason:\n${e.response?.data?.message || e.response?.data?.error || e.message}`);
     }
   };
 
