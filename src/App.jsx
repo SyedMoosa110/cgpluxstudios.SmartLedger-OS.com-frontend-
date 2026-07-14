@@ -169,6 +169,22 @@ export default function App() {
     }
   })
 
+  // OAuth Redirect Handling
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const connected = searchParams.get('connected');
+    const error = searchParams.get('error');
+
+    if (connected) {
+      setActive('Backup');
+      window.history.replaceState({}, "", "/");
+      
+      if (connected === 'false' && error) {
+        setTimeout(() => alert(`Google Drive Connection Failed\n\nReason: ${error}`), 500);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     localStorage.setItem('themeStyle', themeStyle)
   }, [themeStyle])
