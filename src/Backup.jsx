@@ -168,7 +168,8 @@ export default function BackupPanel() {
                   alert(`Migration failed: ${res.data.error}`);
                 }
               } catch (err) {
-                alert(`Error executing migrations: ${err.message}`);
+                const serverError = err.response?.data?.error || err.response?.data?.detail;
+                alert(`Error executing migrations: ${serverError || err.message}`);
               }
             }} style={{ background: '#dc2626', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
               Run Migrations
