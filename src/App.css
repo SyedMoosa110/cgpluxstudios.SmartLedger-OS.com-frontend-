@@ -801,9 +801,9 @@ td small {
 }
 
 .loginBox .message {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.1);
-  color: #e2e8f0;
+  border: 1px solid #e4e4e7;
+  background: #f4f4f5;
+  color: #09090b;
   border-radius: 8px;
   padding: 10px 12px;
   text-align: center;
