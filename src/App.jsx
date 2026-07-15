@@ -154,7 +154,7 @@ export default function App() {
   const [checkingSession, setCheckingSession] = useState(true)
   const [loginForm, setLoginForm] = useState({ username: '', password: '' })
   const [isRegistering, setIsRegistering] = useState(false)
-  const [registerForm, setRegisterForm] = useState({ business_name: '', owner_name: '', email: '', phone: '', password: '' })
+  const [registerForm, setRegisterForm] = useState({ business_name: '', owner_name: '', email: '', phone: '', password: '', logo_base64: '' })
   const [active, setActive] = useState('Dashboard')
   const [menuOpen, setMenuOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -401,7 +401,7 @@ export default function App() {
       await prepareCsrf()
       const csrfToken = csrfTokenCached;
       const response = await axios.post(`${apiBase}/auth/register/`, registerForm, { withCredentials: true, headers: { 'X-CSRFToken': csrfToken } })
-      setRegisterForm({ business_name: '', owner_name: '', email: '', phone: '', password: '' })
+      setRegisterForm({ business_name: '', owner_name: '', email: '', phone: '', password: '', logo_base64: '' })
       setIsRegistering(false)
       setMessage(response.data?.detail || 'Registration successful! Please login.')
     } catch (error) {
@@ -610,6 +610,24 @@ export default function App() {
           <input required type="email" value={registerForm.email} onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })} placeholder="Email Address" />
           <input required value={registerForm.phone} onChange={(e) => setRegisterForm({ ...registerForm, phone: e.target.value })} placeholder="Phone Number" />
           <input required type="password" value={registerForm.password} onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })} placeholder="Set Password" />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%', marginBottom: '12px' }}>
+            <label style={{ fontSize: '12px', color: '#94a3b8', textAlign: 'left', fontWeight: 'bold' }}>Company Logo (Optional)</label>
+            <input 
+              type="file" 
+              accept="image/*" 
+              onChange={(e) => {
+                const file = e.target.files[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onloadend = () => {
+                    setRegisterForm({ ...registerForm, logo_base64: reader.result });
+                  };
+                  reader.readAsDataURL(file);
+                }
+              }} 
+              style={{ fontSize: '13px', padding: '6px', background: 'transparent', border: '1px solid #334155', borderRadius: '6px', color: '#94a3b8' }}
+            />
+          </div>
           <button className="primary"><Plus size={18} /> Create Account</button>
           <div style={{ textAlign: 'center', marginTop: '10px' }}>
             <button type="button" className="textLinkButton" style={{ background: 'none', border: 'none', color: '#0f766e', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }} onClick={() => { setIsRegistering(false); setMessage('') }}>
@@ -641,7 +659,13 @@ export default function App() {
     {menuOpen && <div className="sidebar-overlay" onClick={() => setMenuOpen(false)} />}
     <aside className={menuOpen ? 'sidebar open' : 'sidebar'}>
       <div className="brand">
-        <div className="brandMark"><Landmark size={22} /></div>
+        <div className="brandMark">
+          {auth?.company_logo ? (
+            <img src={auth.company_logo} alt="Logo" style={{ width: '22px', height: '22px', objectFit: 'contain', borderRadius: '4px' }} />
+          ) : (
+            <Landmark size={22} />
+          )}
+        </div>
         <div>
           <strong>{auth?.is_portal_admin ? 'Superadmin' : (auth?.company_name || 'LedgerPro')}</strong>
           <span style={{ textTransform: 'capitalize' }}>
