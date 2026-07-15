@@ -61,7 +61,12 @@ export default function BackupPanel() {
       fetchStatus();
       fetchLogs();
     }, 5000); // Live polling
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      setStatus(null);
+      setHistory([]);
+      setLogs([]);
+    };
   }, []);
 
   const handleConnect = async () => {
