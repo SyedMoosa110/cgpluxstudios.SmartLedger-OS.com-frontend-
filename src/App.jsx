@@ -77,20 +77,21 @@ function openAttachment(urlOrBase64) {
 
 const themePresets = {
   original: {
-    '--primary-color': '#ffffff',
-    '--primary-hover': '#e4e4e7',
-    '--primary-text': '#09090b',
-    '--bg-color': '#09090b',
-    '--text-color': '#fafafa',
+    '--primary-color': '#000000',
+    '--primary-hover': '#1f2937',
+    '--primary-text': '#ffffff',
+    '--bg-color': '#f4f4f5',
+    '--text-color': '#18181b',
     '--sidebar-bg': '#000000',
-    '--sidebar-text': '#fafafa',
+    '--sidebar-text': '#f4f4f5',
     '--sidebar-hover': '#18181b',
     '--sidebar-border': 'rgba(255, 255, 255, 0.1)',
-    '--panel-bg': '#09090b',
-    '--panel-border': '1px solid #27272a',
-    '--panel-radius': '8px',
-    '--panel-shadow': '0 4px 20px rgba(0, 0, 0, 0.5)',
-    '--card-glow': 'inset 0 1px 0 0 rgba(255, 255, 255, 0.05)',
+    '--panel-bg': '#ffffff',
+    '--panel-border': '1px solid #e4e4e7',
+    '--panel-radius': '12px',
+    '--panel-shadow': '0 8px 30px rgba(0, 0, 0, 0.03)',
+    '--card-glow': 'none',
+    '--row-hover': '#f4f4f5',
   },
   glassmorphism: {
     '--primary-color': '#6366f1',
@@ -107,6 +108,7 @@ const themePresets = {
     '--panel-radius': '16px',
     '--panel-shadow': '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
     '--card-glow': 'inset 0 0 0 1px rgba(255, 255, 255, 0.5)',
+    '--row-hover': 'rgba(255, 255, 255, 0.15)',
   },
   dark: {
     '--primary-color': '#14b8a6',
@@ -123,6 +125,7 @@ const themePresets = {
     '--panel-radius': '10px',
     '--panel-shadow': '0 4px 20px rgba(0, 0, 0, 0.3)',
     '--card-glow': 'none',
+    '--row-hover': '#1f2937',
   },
   brutalism: {
     '--primary-color': '#facc15',
@@ -139,6 +142,7 @@ const themePresets = {
     '--panel-radius': '0px',
     '--panel-shadow': '5px 5px 0px #000000',
     '--card-glow': 'none',
+    '--row-hover': '#e5e7eb',
   },
   cyberpunk: {
     '--primary-color': '#ff007f',
@@ -155,6 +159,7 @@ const themePresets = {
     '--panel-radius': '4px',
     '--panel-shadow': '0 0 10px rgba(0, 255, 255, 0.25)',
     '--card-glow': '0 0 5px rgba(255, 0, 127, 0.2)',
+    '--row-hover': '#161622',
   },
   pastel: {
     '--primary-color': '#fda4af',
@@ -171,6 +176,7 @@ const themePresets = {
     '--panel-radius': '20px',
     '--panel-shadow': '0 10px 20px rgba(120, 113, 108, 0.04)',
     '--card-glow': 'none',
+    '--row-hover': '#e7e5e4',
   }
 }
 
