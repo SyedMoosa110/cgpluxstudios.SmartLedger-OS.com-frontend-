@@ -905,7 +905,10 @@ function SettingsPanel({ accounts, notes, save, remove, changePassword, themeSty
         {themesList.map(t => (
           <div 
             key={t.id} 
-            onClick={() => setThemeStyle(t.id)}
+            onClick={() => {
+              setThemeStyle(t.id);
+              setCustomColors({ primary: '', bg: '', text: '', sidebarBg: '', sidebarText: '', panelBg: '' });
+            }}
             style={{
               padding: '14px',
               borderRadius: 'var(--panel-radius)',

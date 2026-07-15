@@ -125,41 +125,41 @@ export default function SuperadminPanel() {
       {/* Metrics Row */}
       <section className="statsGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
         <div className="metric blue" style={{ background: 'var(--panel-bg)', border: 'var(--panel-border)', borderRadius: 'var(--panel-radius)', padding: '20px', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: 'var(--panel-shadow)' }}>
-          <div style={{ background: '#eff6ff', color: '#2563eb', padding: '10px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', padding: '10px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Users size={24} />
           </div>
           <div>
-            <span style={{ fontSize: '13px', color: '#64748b', display: 'block' }}>Total Registrations</span>
+            <span style={{ fontSize: '13px', color: 'var(--text-color)', opacity: 0.7, display: 'block' }}>Total Registrations</span>
             <strong style={{ fontSize: '24px', color: 'var(--text-color)' }}>{stats.total}</strong>
           </div>
         </div>
         
         <div className="metric green" style={{ background: 'var(--panel-bg)', border: 'var(--panel-border)', borderRadius: 'var(--panel-radius)', padding: '20px', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: 'var(--panel-shadow)' }}>
-          <div style={{ background: '#ecfdf5', color: '#059669', padding: '10px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '10px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Star size={24} />
           </div>
           <div>
-            <span style={{ fontSize: '13px', color: '#64748b', display: 'block' }}>Upgraded Premium</span>
+            <span style={{ fontSize: '13px', color: 'var(--text-color)', opacity: 0.7, display: 'block' }}>Upgraded Premium</span>
             <strong style={{ fontSize: '24px', color: 'var(--text-color)' }}>{stats.upgraded}</strong>
           </div>
         </div>
 
         <div className="metric amber" style={{ background: 'var(--panel-bg)', border: 'var(--panel-border)', borderRadius: 'var(--panel-radius)', padding: '20px', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: 'var(--panel-shadow)' }}>
-          <div style={{ background: '#fffbeb', color: '#d97706', padding: '10px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', padding: '10px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Calendar size={24} />
           </div>
           <div>
-            <span style={{ fontSize: '13px', color: '#64748b', display: 'block' }}>Active Trials</span>
+            <span style={{ fontSize: '13px', color: 'var(--text-color)', opacity: 0.7, display: 'block' }}>Active Trials</span>
             <strong style={{ fontSize: '24px', color: 'var(--text-color)' }}>{stats.activeTrial}</strong>
           </div>
         </div>
 
         <div className="metric red" style={{ background: 'var(--panel-bg)', border: 'var(--panel-border)', borderRadius: 'var(--panel-radius)', padding: '20px', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: 'var(--panel-shadow)' }}>
-          <div style={{ background: '#fef2f2', color: '#dc2626', padding: '10px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: '10px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Ban size={24} />
           </div>
           <div>
-            <span style={{ fontSize: '13px', color: '#64748b', display: 'block' }}>Blocked Users</span>
+            <span style={{ fontSize: '13px', color: 'var(--text-color)', opacity: 0.7, display: 'block' }}>Blocked Users</span>
             <strong style={{ fontSize: '24px', color: 'var(--text-color)' }}>{stats.blocked}</strong>
           </div>
         </div>
@@ -168,8 +168,8 @@ export default function SuperadminPanel() {
       {/* Control Actions & Search */}
       <section className="panel" style={{ background: 'var(--panel-bg)', border: 'var(--panel-border)', borderRadius: 'var(--panel-radius)', padding: '20px', boxShadow: 'var(--panel-shadow)' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-color)', border: '1px solid #dfe6ef', padding: '8px 12px', borderRadius: '6px', minWidth: '300px' }}>
-            <Search size={18} style={{ color: '#94a3b8' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-color)', border: 'var(--panel-border)', padding: '8px 12px', borderRadius: '6px', minWidth: '300px' }}>
+            <Search size={18} style={{ color: 'var(--text-color)', opacity: 0.6 }} />
             <input 
               type="text" 
               placeholder="Search by business, email, owner..." 
@@ -187,12 +187,12 @@ export default function SuperadminPanel() {
                 style={{ 
                   padding: '6px 12px', 
                   borderRadius: '6px', 
-                  border: '1px solid #dfe6ef',
+                  border: 'var(--panel-border)',
                   background: statusFilter === filter ? 'var(--primary-color)' : 'transparent',
-                  color: statusFilter === filter ? 'white' : 'var(--text-color)',
+                  color: statusFilter === filter ? 'var(--primary-text)' : 'var(--text-color)',
                   cursor: 'pointer',
                   fontSize: '13px',
-                  fontWeight: '500',
+                  fontWeight: '600',
                   textTransform: 'capitalize'
                 }}
               >
@@ -206,7 +206,7 @@ export default function SuperadminPanel() {
               style={{ 
                 padding: '6px 10px', 
                 borderRadius: '6px', 
-                border: '1px solid #dfe6ef',
+                border: 'var(--panel-border)',
                 background: 'transparent',
                 color: 'var(--text-color)',
                 cursor: 'pointer'
@@ -219,46 +219,46 @@ export default function SuperadminPanel() {
 
         {/* Directory Table */}
         {loading ? (
-          <p style={{ textAlign: 'center', padding: '40px 0', color: '#64748b' }}>Syncing registered directories...</p>
+          <p style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-color)', opacity: 0.7 }}>Syncing registered directories...</p>
         ) : filteredUsers.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: '#64748b' }}>
+          <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-color)', opacity: 0.7 }}>
             <strong>No user records match the filter.</strong>
           </div>
         ) : (
-          <div className="tableWrap" style={{ overflowX: 'auto' }}>
+          <div className="tableWrap" style={{ overflowX: 'auto', border: 'var(--panel-border)', borderRadius: 'var(--panel-radius)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
-                <tr style={{ borderBottom: '2px solid #e2e8f0', color: '#64748b', fontSize: '13px' }}>
-                  <th style={{ padding: '12px 8px' }}>User Details</th>
-                  <th style={{ padding: '12px 8px' }}>Contact</th>
-                  <th style={{ padding: '12px 8px' }}>Joining & Expiry</th>
-                  <th style={{ padding: '12px 8px' }}>Plan Status</th>
-                  <th style={{ padding: '12px 8px' }}>Access Status</th>
-                  <th style={{ padding: '12px 8px', textAlign: 'right' }}>Actions</th>
+                <tr style={{ borderBottom: 'var(--panel-border)', color: 'var(--text-color)', opacity: 0.8, fontSize: '13px' }}>
+                  <th style={{ padding: '12px 8px', background: 'var(--bg-color)' }}>User Details</th>
+                  <th style={{ padding: '12px 8px', background: 'var(--bg-color)' }}>Contact</th>
+                  <th style={{ padding: '12px 8px', background: 'var(--bg-color)' }}>Joining & Expiry</th>
+                  <th style={{ padding: '12px 8px', background: 'var(--bg-color)' }}>Plan Status</th>
+                  <th style={{ padding: '12px 8px', background: 'var(--bg-color)' }}>Access Status</th>
+                  <th style={{ padding: '12px 8px', textAlign: 'right', background: 'var(--bg-color)' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredUsers.map((user) => (
-                  <tr key={user.id} style={{ borderBottom: '1px solid #e2e8f0', fontSize: '14px' }}>
+                  <tr key={user.id} style={{ borderBottom: 'var(--panel-border)', fontSize: '14px', color: 'var(--text-color)' }}>
                     <td style={{ padding: '12px 8px' }}>
                       <strong style={{ color: 'var(--text-color)', display: 'block' }}>{user.owner_name}</strong>
-                      <span style={{ fontSize: '12px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--text-color)', opacity: 0.7, display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
                         <Building size={12} /> {user.business_name}
                       </span>
                     </td>
                     <td style={{ padding: '12px 8px' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
-                        <Mail size={13} style={{ color: '#94a3b8' }} /> {user.username}
+                        <Mail size={13} style={{ color: 'var(--text-color)', opacity: 0.6 }} /> {user.username}
                       </span>
                       {user.phone && (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
-                          <Phone size={12} style={{ color: '#94a3b8' }} /> {user.phone}
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-color)', opacity: 0.7, marginTop: '2px' }}>
+                          <Phone size={12} style={{ color: 'var(--text-color)', opacity: 0.6 }} /> {user.phone}
                         </span>
                       )}
                     </td>
                     <td style={{ padding: '12px 8px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--text-color)' }}>
-                        <Calendar size={13} style={{ color: '#94a3b8' }} />
+                        <Calendar size={13} style={{ color: 'var(--text-color)', opacity: 0.6 }} />
                         <span>Joined: {formatDate(user.joining_date)}</span>
                       </div>
                       {editingExpiryId === user.id ? (
@@ -267,7 +267,7 @@ export default function SuperadminPanel() {
                             type="date" 
                             value={editExpiryValue} 
                             onChange={(e) => setEditExpiryValue(e.target.value)} 
-                            style={{ padding: '2px 4px', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '4px', background: 'var(--bg-color)', color: 'var(--text-color)' }}
+                            style={{ padding: '2px 4px', fontSize: '12px', border: 'var(--panel-border)', borderRadius: '4px', background: 'var(--bg-color)', color: 'var(--text-color)' }}
                           />
                           <button 
                             disabled={actionLoading === `expiry-${user.id}`}
@@ -278,13 +278,13 @@ export default function SuperadminPanel() {
                           </button>
                           <button 
                             onClick={() => setEditingExpiryId(null)} 
-                            style={{ background: '#64748b', color: 'white', border: 'none', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}
+                            style={{ background: 'var(--primary-color)', color: 'var(--primary-text)', border: 'none', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}
                           >
                             Cancel
                           </button>
                         </div>
                       ) : (
-                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{ fontSize: '12px', color: 'var(--text-color)', opacity: 0.7, marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span>Expires: {user.is_upgraded ? 'N/A (Premium)' : formatDate(user.trial_expiry_date)}</span>
                           {!user.is_portal_admin && !user.is_upgraded && (
                             <button 
@@ -292,7 +292,7 @@ export default function SuperadminPanel() {
                                 setEditingExpiryId(user.id);
                                 setEditExpiryValue(user.trial_expiry_date ? user.trial_expiry_date.substring(0, 10) : '');
                               }} 
-                              style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: '11px', textDecoration: 'underline', padding: 0 }}
+                              style={{ background: 'none', border: 'none', color: 'var(--primary-color)', cursor: 'pointer', fontSize: '11px', textDecoration: 'underline', padding: 0, fontWeight: 'bold' }}
                             >
                               Extend/Change
                             </button>
@@ -328,16 +328,16 @@ export default function SuperadminPanel() {
                     </td>
                     <td style={{ padding: '12px 8px', textAlign: 'right' }}>
                       {user.is_portal_admin ? (
-                        <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>System Superadmin</span>
+                        <span style={{ fontSize: '12px', color: 'var(--text-color)', opacity: 0.6, fontStyle: 'italic' }}>System Superadmin</span>
                       ) : (
                         <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
                           <button 
                             disabled={actionLoading !== null}
                             onClick={() => handleToggleUpgrade(user.id)}
                             style={{ 
-                              background: user.is_upgraded ? '#f1f5f9' : '#059669', 
-                              color: user.is_upgraded ? '#334155' : 'white',
-                              border: 'none', 
+                              background: user.is_upgraded ? 'var(--bg-color)' : '#059669', 
+                              color: user.is_upgraded ? 'var(--text-color)' : 'white',
+                              border: user.is_upgraded ? 'var(--panel-border)' : 'none', 
                               padding: '5px 10px', 
                               borderRadius: '4px', 
                               cursor: 'pointer',
