@@ -643,9 +643,9 @@ export default function App() {
       <div className="brand">
         <div className="brandMark"><Landmark size={22} /></div>
         <div>
-          <strong>{auth?.company_name || 'LedgerPro'}</strong>
+          <strong>{auth?.is_portal_admin ? 'Superadmin' : (auth?.company_name || 'LedgerPro')}</strong>
           <span style={{ textTransform: 'capitalize' }}>
-            {auth?.role ? `${auth.role} Workspace` : 'Account Department'}
+            {auth?.is_portal_admin ? 'Superadmin Portal' : (auth?.role ? `${auth.role} Workspace` : 'Account Department')}
           </span>
         </div>
       </div>
@@ -655,8 +655,8 @@ export default function App() {
       <header className="topbar">
         <button className="iconButton" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu"><Menu /></button>
         <div className="pageHeading">
-          <p>{loading ? 'Syncing latest data...' : `Logged in as ${auth?.owner_name || auth?.username} | ${auth?.company_name || 'Workspace'}`}</p>
-          <h1>{active} | {auth?.company_name || 'Workspace'}</h1>
+          <p>{loading ? 'Syncing latest data...' : (auth?.is_portal_admin ? `Logged in as ${auth?.owner_name || auth?.username} | Superadmin` : `Logged in as ${auth?.owner_name || auth?.username} | ${auth?.company_name || 'Workspace'}`)}</p>
+          <h1>{active} {auth?.is_portal_admin ? '' : `| ${auth?.company_name || 'Workspace'}`}</h1>
           <span>{pageCopy[active]}</span>
         </div>
         <div className="topActions"><button onClick={() => loadActivePage(true)} title="Refresh"><RefreshCw size={18} /></button><button onClick={logout} title="Logout"><LogOut size={18} /></button></div>
