@@ -13,6 +13,10 @@ export default function SuperadminPanel() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // all, active, blocked, expired, upgraded
   const [actionLoading, setActionLoading] = useState(null);
+  
+  // Custom trial expiry states
+  const [editingExpiryId, setEditingExpiryId] = useState(null);
+  const [editExpiryValue, setEditExpiryValue] = useState('');
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -30,6 +34,24 @@ export default function SuperadminPanel() {
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  const handleSaveExpiry = async (profileId) => {
+    if (!editExpiryValue) return;
+    setActionLoading(`expiry-${profileId}`);
+    try {
+      const res = await axios.post(`${apiBase}/superadmin/users/${profileId}/set_expiry/`, { expiry_date: editExpiryValue }, { withCredentials: true });
+      if (res.data.success) {
+        const todayStr = new Date().toISOString().substring(0, 10);
+        const expired = res.data.trial_expiry_date < todayStr;
+        setUsers(users.map(u => u.id === profileId ? { ...u, trial_expiry_date: res.data.trial_expiry_date, is_expired: expired } : u));
+        setEditingExpiryId(null);
+      }
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to update expiry date.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   const handleToggleBlock = async (profileId) => {
     setActionLoading(`block-${profileId}`);
@@ -209,7 +231,7 @@ export default function SuperadminPanel() {
                 <tr style={{ borderBottom: '2px solid #e2e8f0', color: '#64748b', fontSize: '13px' }}>
                   <th style={{ padding: '12px 8px' }}>User Details</th>
                   <th style={{ padding: '12px 8px' }}>Contact</th>
-                  <th style={{ padding: '12px 8px' }}>Joining Date</th>
+                  <th style={{ padding: '12px 8px' }}>Joining & Expiry</th>
                   <th style={{ padding: '12px 8px' }}>Plan Status</th>
                   <th style={{ padding: '12px 8px' }}>Access Status</th>
                   <th style={{ padding: '12px 8px', textAlign: 'right' }}>Actions</th>
@@ -234,11 +256,49 @@ export default function SuperadminPanel() {
                         </span>
                       )}
                     </td>
-                    <td style={{ padding: '12px 8px', color: '#64748b' }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Calendar size={14} style={{ color: '#94a3b8' }} />
-                        {formatDate(user.joining_date)}
-                      </span>
+                    <td style={{ padding: '12px 8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--text-color)' }}>
+                        <Calendar size={13} style={{ color: '#94a3b8' }} />
+                        <span>Joined: {formatDate(user.joining_date)}</span>
+                      </div>
+                      {editingExpiryId === user.id ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                          <input 
+                            type="date" 
+                            value={editExpiryValue} 
+                            onChange={(e) => setEditExpiryValue(e.target.value)} 
+                            style={{ padding: '2px 4px', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '4px', background: 'var(--bg-color)', color: 'var(--text-color)' }}
+                          />
+                          <button 
+                            disabled={actionLoading === `expiry-${user.id}`}
+                            onClick={() => handleSaveExpiry(user.id)} 
+                            style={{ background: '#10b981', color: 'white', border: 'none', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}
+                          >
+                            {actionLoading === `expiry-${user.id}` ? '...' : 'Save'}
+                          </button>
+                          <button 
+                            onClick={() => setEditingExpiryId(null)} 
+                            style={{ background: '#64748b', color: 'white', border: 'none', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span>Expires: {user.is_upgraded ? 'N/A (Premium)' : formatDate(user.trial_expiry_date)}</span>
+                          {!user.is_portal_admin && !user.is_upgraded && (
+                            <button 
+                              onClick={() => {
+                                setEditingExpiryId(user.id);
+                                setEditExpiryValue(user.trial_expiry_date ? user.trial_expiry_date.substring(0, 10) : '');
+                              }} 
+                              style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: '11px', textDecoration: 'underline', padding: 0 }}
+                            >
+                              Extend/Change
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td style={{ padding: '12px 8px' }}>
                       {user.is_upgraded ? (
