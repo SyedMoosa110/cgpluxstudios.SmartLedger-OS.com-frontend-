@@ -191,7 +191,7 @@ export default function App() {
   const [checkingSession, setCheckingSession] = useState(true)
   const [loginForm, setLoginForm] = useState({ username: '', password: '' })
   const [isRegistering, setIsRegistering] = useState(false)
-  const [registerForm, setRegisterForm] = useState({ business_name: '', owner_name: '', email: '', phone: '', password: '', logo_base64: '' })
+  const [registerForm, setRegisterForm] = useState({ business_name: '', owner_name: '', email: '', phone: '', password: '', logo_base64: '', address: '' })
   const [active, setActive] = useState('Dashboard')
   const [menuOpen, setMenuOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -639,6 +639,7 @@ export default function App() {
           <input required type="email" value={registerForm.email} onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })} placeholder="Email Address" />
           <input required value={registerForm.phone} onChange={(e) => setRegisterForm({ ...registerForm, phone: e.target.value })} placeholder="Phone Number" />
           <input required type="password" value={registerForm.password} onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })} placeholder="Set Password" />
+          <textarea required value={registerForm.address || ''} onChange={(e) => setRegisterForm({ ...registerForm, address: e.target.value })} placeholder="Shop / Office / Business Address" style={{ minHeight: '60px', padding: '10px 12px', border: '1px solid #d4d4d8', borderRadius: '8px', width: '100%', outline: 'none', background: '#ffffff', color: '#09090b', resize: 'none', fontSize: '15px' }} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%', marginBottom: '12px' }}>
             <label style={{ fontSize: '12px', color: '#94a3b8', textAlign: 'left', fontWeight: 'bold' }}>Company Logo (Optional)</label>
             <input 
