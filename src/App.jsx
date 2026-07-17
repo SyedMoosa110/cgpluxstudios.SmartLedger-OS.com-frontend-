@@ -815,7 +815,7 @@ export default function App() {
 
       {active === 'Categories' && <CategoriesPanel categories={data.categories} save={saveSimple} remove={(id) => remove('categories', id)} />}
       {active === 'Parties/Vendors' && <PartiesPanel parties={data.parties} save={saveSimple} remove={(id) => remove('parties', id)} />}
-      {active === 'Sales' && <SalesPanel sales={data.sales} stock={data.stock} accounts={data.accounts} save={saveSimple} remove={(id) => remove('sales', id)} exportSales={downloadSalesExport} importSales={importSales} />}
+      {active === 'Sales' && <SalesPanel sales={data.sales} stock={data.stock} accounts={data.accounts} save={saveSimple} remove={(id) => remove('sales', id)} exportSales={downloadSalesExport} importSales={importSales} auth={auth} />}
       {active === 'Stock' && <StockPanel stock={data.stock} save={saveSimple} remove={(id) => remove('stock', id)} exportStock={downloadStockExport} importStock={importStock} />}
       {active === 'Backup' && <BackupPanel />}
       {active === 'Superadmin' && auth?.is_portal_admin && <SuperadminPanel />}
@@ -1170,7 +1170,7 @@ function StockPanel({ stock, save, remove, exportStock, importStock }) {
   )
 }
 
-function SalesPanel({ sales, stock, accounts, save, remove, exportSales, importSales }) {
+function SalesPanel({ sales, stock, accounts, save, remove, exportSales, importSales, auth }) {
   const [form, setForm] = useState({ stock: '', quantity: '', sale_price: '', date: new Date().toISOString().slice(0, 10), account: '', notes: '', customer_name: '', customer_phone: '', customer_address: '' })
   const [editing, setEditing] = useState(null)
   const [activeInvoice, setActiveInvoice] = useState(null)
