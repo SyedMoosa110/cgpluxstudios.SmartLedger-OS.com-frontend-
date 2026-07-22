@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { 
-  Users, ShieldAlert, Star, Ban, CheckCircle, Search, Calendar, Phone, Mail, Building, RefreshCw
+  Users, ShieldAlert, Star, Ban, CheckCircle, Search, Calendar, Phone, Mail, Building, RefreshCw, Archive
 } from 'lucide-react';
+import BusinessVerticalManager from './BusinessVerticalManager.jsx';
 
 const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api';
 
@@ -13,6 +14,7 @@ export default function SuperadminPanel() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // all, active, blocked, expired, upgraded
   const [actionLoading, setActionLoading] = useState(null);
+  const [activeTab, setActiveTab] = useState('users'); // users, verticals
   
   // Custom trial expiry states
   const [editingExpiryId, setEditingExpiryId] = useState(null);
@@ -122,8 +124,30 @@ export default function SuperadminPanel() {
         </div>
       )}
 
-      {/* Metrics Row */}
-      <section className="statsGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: '10px', borderBottom: '1px solid var(--panel-border)', paddingBottom: '10px' }}>
+        <button 
+          onClick={() => setActiveTab('users')}
+          style={{ 
+            background: activeTab === 'users' ? 'var(--primary-color)' : 'transparent',
+            color: activeTab === 'users' ? 'var(--primary-text)' : 'var(--text-color)',
+            border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px'
+          }}
+        ><Users size={16} /> User Directories</button>
+        <button 
+          onClick={() => setActiveTab('verticals')}
+          style={{ 
+            background: activeTab === 'verticals' ? 'var(--primary-color)' : 'transparent',
+            color: activeTab === 'verticals' ? 'var(--primary-text)' : 'var(--text-color)',
+            border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px'
+          }}
+        ><Archive size={16} /> Master Catalog & Verticals</button>
+      </div>
+
+      {activeTab === 'users' ? (
+        <>
+          {/* Metrics Row */}
+          <section className="statsGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
         <div className="metric blue" style={{ background: 'var(--panel-bg)', border: 'var(--panel-border)', borderRadius: 'var(--panel-radius)', padding: '20px', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: 'var(--panel-shadow)' }}>
           <div style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', padding: '10px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Users size={24} />
@@ -374,6 +398,9 @@ export default function SuperadminPanel() {
           </div>
         )}
       </section>
+      </>) : (
+        <BusinessVerticalManager />
+      )}
     </div>
   );
 }

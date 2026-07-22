@@ -192,7 +192,7 @@ export default function App() {
   const [checkingSession, setCheckingSession] = useState(true)
   const [loginForm, setLoginForm] = useState({ username: '', password: '' })
   const [isRegistering, setIsRegistering] = useState(false)
-  const [registerForm, setRegisterForm] = useState({ business_name: '', owner_name: '', email: '', phone: '', password: '', logo_base64: '', address: '' })
+  const [registerForm, setRegisterForm] = useState({ business_name: '', owner_name: '', password: '', confirm_password: '', logo_base64: '' })
   const [active, setActive] = useState('Dashboard')
   const [menuOpen, setMenuOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -458,11 +458,15 @@ export default function App() {
 
   async function register(event) {
     event.preventDefault()
+    if (registerForm.password !== registerForm.confirm_password) {
+      setMessage('Passwords do not match.')
+      return
+    }
     try {
       await prepareCsrf()
       const csrfToken = csrfTokenCached;
       const response = await axios.post(`${apiBase}/auth/register/`, registerForm, { withCredentials: true, headers: { 'X-CSRFToken': csrfToken } })
-      setRegisterForm({ business_name: '', owner_name: '', email: '', phone: '', password: '', logo_base64: '' })
+      setRegisterForm({ business_name: '', owner_name: '', password: '', confirm_password: '', logo_base64: '' })
       setIsRegistering(false)
       setMessage(response.data?.detail || 'Registration successful! Please login.')
     } catch (error) {
@@ -660,10 +664,8 @@ export default function App() {
           <div className="brand center"><div className="brandMark">{CGPLUX_LOGO ? <img src={CGPLUX_LOGO} alt="Logo" style={{ width: '22px', height: '22px', objectFit: 'contain' }} /> : <Landmark />}</div><div><strong>cgplux STUDIOS</strong><span>Create Account</span></div></div>
           <input required value={registerForm.business_name} onChange={(e) => setRegisterForm({ ...registerForm, business_name: e.target.value })} placeholder="Company or Business Name" />
           <input required value={registerForm.owner_name} onChange={(e) => setRegisterForm({ ...registerForm, owner_name: e.target.value })} placeholder="Owner Name" />
-          <input required type="email" value={registerForm.email} onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })} placeholder="Email Address" />
-          <input required value={registerForm.phone} onChange={(e) => setRegisterForm({ ...registerForm, phone: e.target.value })} placeholder="Phone Number" />
           <input required type="password" value={registerForm.password} onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })} placeholder="Set Password" />
-          <textarea required value={registerForm.address || ''} onChange={(e) => setRegisterForm({ ...registerForm, address: e.target.value })} placeholder="Shop / Office / Business Address" style={{ minHeight: '60px', padding: '10px 12px', border: '1px solid #d4d4d8', borderRadius: '8px', width: '100%', outline: 'none', background: '#ffffff', color: '#09090b', resize: 'none', fontSize: '15px' }} />
+          <input required type="password" value={registerForm.confirm_password} onChange={(e) => setRegisterForm({ ...registerForm, confirm_password: e.target.value })} placeholder="Re-enter Password" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%', marginBottom: '12px' }}>
             <label style={{ fontSize: '13px', color: '#64748b', textAlign: 'left', fontWeight: 'bold' }}>Company Logo (Optional)</label>
             <input 
