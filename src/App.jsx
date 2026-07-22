@@ -4,7 +4,7 @@ import {
   ArrowDownCircle, ArrowUpCircle, Banknote, BookOpen, CalendarDays, CheckCircle2,
   Clock3, Download, Edit3, FileSpreadsheet, FileText, Landmark, LayoutDashboard,
   Lock, LogOut, Menu, Plus, ReceiptText, RefreshCw, Search, Settings, Tags,
-  Trash2, Upload, Users, WalletCards, ShoppingCart, Package, Printer, Cloud
+  Trash2, Upload, Users, WalletCards, ShoppingCart, Package, Printer, Cloud, Archive
 } from 'lucide-react'
 import './App.css'
 import { CGPLUX_LOGO } from './LogoConstant.js'
