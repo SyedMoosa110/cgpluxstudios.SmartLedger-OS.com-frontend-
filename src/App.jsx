@@ -16,7 +16,7 @@ const ChartPanel = lazy(() => import('./ChartPanel.jsx'))
 const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api'
 const navItems = [
   ['Dashboard', LayoutDashboard], ['Transactions', BookOpen], ['Categories', Tags],
-  ['Parties/Vendors', Users], ['Sales', ShoppingCart], ['Stock', Package],
+  ['Parties/Vendors', Users], ['Sales', ShoppingCart], ['Stock', Package], ['Master Catalog', Archive],
   ['Backup', Cloud], ['Settings', Settings],
 ]
 const pageCopy = {
@@ -27,6 +27,7 @@ const pageCopy = {
   'Parties/Vendors': 'Keep customers, vendors, staff, and other parties in one place.',
   Sales: 'Track product sales, record custom sales, and manage sales revenue.',
   Stock: 'Monitor inventory levels, view total, sold, and remaining stock.',
+  'Master Catalog': 'Add predefined products from the master database directly to your stock.',
   Settings: 'Manage accounts, reminders, and admin access.',
   Superadmin: 'Manage all user accounts, active trials, and company plan statuses.',
 }
@@ -187,6 +188,89 @@ const themePresets = {
   }
 }
 
+function MasterCatalogPanel({ auth, api, onStockUpdated }) {
+  const [products, setProducts] = useState([])
+  const [selected, setSelected] = useState({})
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (auth?.company?.business_type) {
+      api.get(`/master-products/?vertical_name=${auth.company.business_type}`)
+         .then(res => setProducts(res.data))
+         .catch(err => console.error(err))
+    }
+  }, [auth])
+
+  const toggle = (p) => {
+    const sel = {...selected}
+    if (sel[p.id]) delete sel[p.id]
+    else sel[p.id] = { name: p.name, quantity: 10, selling_price: p.default_unit_price, low_stock_alert: 5 }
+    setSelected(sel)
+  }
+
+  const update = (id, field, val) => {
+    setSelected({...selected, [id]: {...selected[id], [field]: val}})
+  }
+
+  const addSelectedToStock = async () => {
+    const items = Object.values(selected)
+    if (items.length === 0) return alert('Select at least one product.')
+    setLoading(true)
+    try {
+      await Promise.all(items.map(prod => api.post('/stock/', prod)))
+      alert(`Added ${items.length} products to stock successfully!`)
+      setSelected({})
+      if (onStockUpdated) onStockUpdated()
+    } catch (err) {
+      alert('Failed to add some products.')
+    }
+    setLoading(false)
+  }
+
+  return (
+    <Panel title="Master Catalog - Add to Stock" icon={Archive} actions={
+      <button onClick={addSelectedToStock} disabled={loading || Object.keys(selected).length === 0} className="primary">
+        {loading ? 'Adding...' : `Add ${Object.keys(selected).length} to Stock`}
+      </button>
+    }>
+      <p style={{marginBottom: '15px'}}>Here you can browse pre-defined products from your business category ({auth?.company?.business_type}) and add them to your stock.</p>
+      
+      <div className="tableWrapper" style={{ maxHeight: '500px', overflowY: 'auto' }}>
+        <table>
+          <thead>
+            <tr>
+              <th style={{width: '40px'}}></th>
+              <th>Product Name</th>
+              <th>Category/Brand</th>
+              <th>Selling Price</th>
+              <th>Opening Qty</th>
+            </tr>
+          </thead>
+          <tbody>
+            {products.map(p => {
+              const isSel = !!selected[p.id]
+              return (
+                <tr key={p.id} style={{ background: isSel ? 'var(--row-highlight)' : 'transparent' }}>
+                  <td><input type="checkbox" checked={isSel} onChange={() => toggle(p)} style={{width:'18px',height:'18px',cursor:'pointer'}} /></td>
+                  <td><strong>{p.name}</strong> <span style={{fontSize:'12px', color:'var(--text-color)'}}>{p.weight_unit || ''}</span></td>
+                  <td>{p.generic_name || '-'}</td>
+                  <td>
+                    {isSel ? <input type="number" value={selected[p.id].selling_price} onChange={e => update(p.id, 'selling_price', e.target.value)} style={{width:'80px', padding:'4px'}} /> : Number(p.default_unit_price).toFixed(2)}
+                  </td>
+                  <td>
+                    {isSel ? <input type="number" value={selected[p.id].quantity} onChange={e => update(p.id, 'quantity', e.target.value)} style={{width:'80px', padding:'4px'}} /> : '-'}
+                  </td>
+                </tr>
+              )
+            })}
+            {products.length === 0 && <tr><td colSpan="5" style={{textAlign:'center', padding:'20px'}}>No master catalog products found for your vertical.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </Panel>
+  )
+}
+
 export default function App() {
   const [auth, setAuth] = useState(null)
   const [checkingSession, setCheckingSession] = useState(true)
@@ -217,7 +301,7 @@ export default function App() {
       company_currency_symbol: updatedData.currency_symbol,
       company_tagline: updatedData.tagline
     }))
-    setLoaded(current => ({ ...current, refs: false, Dashboard: false, Stock: false, Sales: false, Transactions: false }))
+    setLoaded(current => ({ ...current, refs: false, Dashboard: false, Stock: false, Sales: false, Transactions: false, 'Master Catalog': false }))
     loadActivePage(true)
   }
   
@@ -290,7 +374,7 @@ export default function App() {
   }, [themeStyle, customColors])
 
   const [data, setData] = useState({ dashboard: null, reports: null, accounts: [], categories: [], parties: [], transactions: [], dues: [], notes: [], sales: [], stock: [] })
-  const [loaded, setLoaded] = useState({ refs: false, Dashboard: false, Transactions: false, Categories: false, 'Parties/Vendors': false, Settings: false, Sales: false, Stock: false })
+  const [loaded, setLoaded] = useState({ refs: false, Dashboard: false, Transactions: false, Categories: false, 'Parties/Vendors': false, Settings: false, Sales: false, Stock: false, 'Master Catalog': false })
   const [filters, setFilters] = useState({ keyword: '', category: '', payment_method: '', start: '', end: '', min_amount: '', max_amount: '' })
   const [appliedFilters, setAppliedFilters] = useState(filters)
   const [txForm, setTxForm] = useState(emptyTransaction())
@@ -480,7 +564,7 @@ export default function App() {
     setAuth(null)
     setActive('Dashboard')
     setData({ dashboard: null, reports: null, accounts: [], categories: [], parties: [], transactions: [], dues: [], notes: [] })
-    setLoaded({ refs: false, Dashboard: false, Transactions: false, Categories: false, 'Parties/Vendors': false, Settings: false })
+    setLoaded({ refs: false, Dashboard: false, Transactions: false, Categories: false, 'Parties/Vendors': false, Settings: false, 'Master Catalog': false })
     setMessage('Logged out.')
   }
 
@@ -609,7 +693,7 @@ export default function App() {
       await api.post('/import/sales/', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
-      setLoaded((current) => ({ ...current, Dashboard: false, Sales: false, Stock: false }))
+      setLoaded((current) => ({ ...current, Dashboard: false, Sales: false, Stock: false, 'Master Catalog': false }))
       await loadActivePage(true)
       setMessage('Sales imported successfully.')
     } catch (error) {
@@ -636,7 +720,7 @@ export default function App() {
       await api.post('/import/stock/', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
-      setLoaded((current) => ({ ...current, Dashboard: false, Sales: false, Stock: false }))
+      setLoaded((current) => ({ ...current, Dashboard: false, Sales: false, Stock: false, 'Master Catalog': false }))
       await loadActivePage(true)
       setMessage('Stock imported successfully.')
     } catch (error) {
@@ -845,6 +929,7 @@ export default function App() {
       {active === 'Parties/Vendors' && <PartiesPanel parties={data.parties} save={saveSimple} remove={(id) => remove('parties', id)} />}
       {active === 'Sales' && <SalesPanel sales={data.sales} stock={data.stock} accounts={data.accounts} save={saveSimple} remove={(id) => remove('sales', id)} exportSales={downloadSalesExport} importSales={importSales} auth={auth} api={api} />}
       {active === 'Stock' && <StockPanel stock={data.stock} save={saveSimple} remove={(id) => remove('stock', id)} exportStock={downloadStockExport} importStock={importStock} auth={auth} api={api} />}
+      {active === 'Master Catalog' && <MasterCatalogPanel auth={auth} api={api} onStockUpdated={() => setLoaded(c => ({...c, Stock: false}))} />}
       {active === 'Backup' && <BackupPanel />}
       {active === 'Superadmin' && auth?.is_portal_admin && <SuperadminPanel />}
 
