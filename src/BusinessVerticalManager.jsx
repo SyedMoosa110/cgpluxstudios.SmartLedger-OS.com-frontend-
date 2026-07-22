@@ -52,6 +52,28 @@ export default function BusinessVerticalManager() {
     }
   };
 
+  const deleteVertical = async (id, e) => {
+    e.stopPropagation();
+    if (!window.confirm("Are you sure you want to delete this vertical? It may break things for users who selected it.")) return;
+    try {
+      await axios.delete(`${apiBase}/business-verticals/${id}/`, { withCredentials: true });
+      setVerticals(verticals.filter(v => v.id !== id));
+      if (selectedVertical?.id === id) setSelectedVertical(null);
+    } catch (err) {
+      alert('Failed to delete vertical.');
+    }
+  };
+
+  const deleteProduct = async (id) => {
+    if (!window.confirm("Delete this master product?")) return;
+    try {
+      await axios.delete(`${apiBase}/master-products/${id}/`, { withCredentials: true });
+      setProducts(products.filter(p => p.id !== id));
+    } catch (err) {
+      alert('Failed to delete product.');
+    }
+  };
+
   const handleCsvUpload = async (e) => {
     e.preventDefault();
     if (!csvFile || !selectedVertical) return;
@@ -101,10 +123,20 @@ export default function BusinessVerticalManager() {
                 cursor: 'pointer',
                 background: selectedVertical?.id === v.id ? 'rgba(15, 118, 110, 0.1)' : 'transparent',
                 borderColor: selectedVertical?.id === v.id ? '#0f766e' : '#e2e8f0',
-                fontWeight: selectedVertical?.id === v.id ? 'bold' : 'normal'
+                fontWeight: selectedVertical?.id === v.id ? 'bold' : 'normal',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
               }}
             >
-              {v.name}
+              <span>{v.name}</span>
+              <button 
+                onClick={(e) => deleteVertical(v.id, e)}
+                style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px' }}
+                title="Delete Vertical"
+              >
+                <Trash2 size={16} />
+              </button>
             </div>
           ))}
         </div>
@@ -148,6 +180,7 @@ export default function BusinessVerticalManager() {
                     <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '1px solid #cbd5e1' }}>Product Name</th>
                     <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '1px solid #cbd5e1' }}>Generic / Brand</th>
                     <th style={{ padding: '8px 12px', textAlign: 'right', borderBottom: '1px solid #cbd5e1' }}>Default Price</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right', borderBottom: '1px solid #cbd5e1', width: '50px' }}></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -156,6 +189,15 @@ export default function BusinessVerticalManager() {
                       <td style={{ padding: '8px 12px' }}>{p.name} {p.weight_unit && <span style={{ color: '#64748b', fontSize: '11px' }}>({p.weight_unit})</span>}</td>
                       <td style={{ padding: '8px 12px', color: '#64748b' }}>{p.generic_name || p.barcode || '-'}</td>
                       <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '500' }}>{Number(p.default_unit_price).toFixed(2)}</td>
+                      <td style={{ padding: '8px 12px', textAlign: 'right' }}>
+                        <button 
+                          onClick={() => deleteProduct(p.id)}
+                          style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }}
+                          title="Delete Product"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
                     </tr>
                   ))}
                   {products.length === 0 && (
