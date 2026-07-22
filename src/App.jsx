@@ -752,7 +752,7 @@ export default function App() {
   }
 
   return <>
-    {showOnboarding && <OnboardingWizard onComplete={handleOnboardingComplete} />}
+    {showOnboarding && <OnboardingWizard onComplete={handleOnboardingComplete} api={api} />}
     <div className="app">
     {menuOpen && <div className="sidebar-overlay" onClick={() => setMenuOpen(false)} />}
     <aside className={menuOpen ? 'sidebar open' : 'sidebar'}>

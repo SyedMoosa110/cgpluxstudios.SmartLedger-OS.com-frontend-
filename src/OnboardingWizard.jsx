@@ -4,7 +4,7 @@ import { Sparkles, ShoppingCart, Activity, Monitor, Check, ArrowRight, ShieldChe
 
 const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api';
 
-export default function OnboardingWizard({ onComplete }) {
+export default function OnboardingWizard({ onComplete, api }) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -48,7 +48,7 @@ export default function OnboardingWizard({ onComplete }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await axios.post(`${apiBase}/onboarding/setup/`, formData, { withCredentials: true });
+      const res = await api.post('/onboarding/setup/', formData);
       if (res.data.success) {
         onComplete(res.data);
       } else {
