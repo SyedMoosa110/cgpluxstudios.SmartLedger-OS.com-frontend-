@@ -10,6 +10,7 @@ import './App.css'
 import { CGPLUX_LOGO } from './LogoConstant.js'
 import BackupPanel from './Backup.jsx'
 import SuperadminPanel from './Superadmin.jsx'
+import OnboardingWizard from './OnboardingWizard.jsx'
 
 const ChartPanel = lazy(() => import('./ChartPanel.jsx'))
 const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api'
@@ -196,6 +197,29 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
+  const [showOnboarding, setShowOnboarding] = useState(false)
+
+  useEffect(() => {
+    if (auth && !auth.is_portal_admin && (!auth.company_business_type || auth.company_business_type === 'general' && !localStorage.getItem('onboarding_done'))) {
+      setShowOnboarding(true)
+    } else {
+      setShowOnboarding(false)
+    }
+  }, [auth])
+
+  const handleOnboardingComplete = (updatedData) => {
+    setShowOnboarding(false)
+    localStorage.setItem('onboarding_done', 'true')
+    setAuth(prev => ({
+      ...prev,
+      company_name: updatedData.business_name || prev.company_name,
+      company_business_type: updatedData.business_type,
+      company_currency_symbol: updatedData.currency_symbol,
+      company_tagline: updatedData.tagline
+    }))
+    setLoaded(current => ({ ...current, refs: false, Dashboard: false, Stock: false, Sales: false, Transactions: false }))
+    loadActivePage(true)
+  }
   
   // Customization States
   const [themeStyle, setThemeStyle] = useState(() => localStorage.getItem('themeStyle') || 'original')
@@ -727,7 +751,9 @@ export default function App() {
     </main>
   }
 
-  return <div className="app">
+  return <>
+    {showOnboarding && <OnboardingWizard onComplete={handleOnboardingComplete} />}
+    <div className="app">
     {menuOpen && <div className="sidebar-overlay" onClick={() => setMenuOpen(false)} />}
     <aside className={menuOpen ? 'sidebar open' : 'sidebar'}>
       <div className="brand">
@@ -815,14 +841,14 @@ export default function App() {
 
       {active === 'Categories' && <CategoriesPanel categories={data.categories} save={saveSimple} remove={(id) => remove('categories', id)} />}
       {active === 'Parties/Vendors' && <PartiesPanel parties={data.parties} save={saveSimple} remove={(id) => remove('parties', id)} />}
-      {active === 'Sales' && <SalesPanel sales={data.sales} stock={data.stock} accounts={data.accounts} save={saveSimple} remove={(id) => remove('sales', id)} exportSales={downloadSalesExport} importSales={importSales} auth={auth} />}
-      {active === 'Stock' && <StockPanel stock={data.stock} save={saveSimple} remove={(id) => remove('stock', id)} exportStock={downloadStockExport} importStock={importStock} />}
+      {active === 'Sales' && <SalesPanel sales={data.sales} stock={data.stock} accounts={data.accounts} save={saveSimple} remove={(id) => remove('sales', id)} exportSales={downloadSalesExport} importSales={importSales} auth={auth} api={api} />}
+      {active === 'Stock' && <StockPanel stock={data.stock} save={saveSimple} remove={(id) => remove('stock', id)} exportStock={downloadStockExport} importStock={importStock} auth={auth} api={api} />}
       {active === 'Backup' && <BackupPanel />}
       {active === 'Superadmin' && auth?.is_portal_admin && <SuperadminPanel />}
 
       {active === 'Settings' && <SettingsPanel accounts={data.accounts} notes={data.notes} save={saveSimple} remove={remove} changePassword={changePassword} themeStyle={themeStyle} setThemeStyle={setThemeStyle} customColors={customColors} setCustomColors={setCustomColors} />}
     </main>
-  </div>
+  </div></>
 }
 
 function Metric({ icon: Icon, label, value, tone }) { return <div className={`metric ${tone}`}><div className="metricIcon"><Icon /></div><span>{label}</span><strong>{value}</strong></div> }
@@ -1070,15 +1096,131 @@ function SimpleRows({ rows, remove, emptyTitle = 'No records', emptyBody = 'Reco
   return <div className="simpleList">{rows.map((row) => <div key={row[0]}>{row.slice(1).map((cell) => <span key={cell}>{cell || '-'}</span>)}{remove && <IconButton tone="danger" onClick={() => remove(row[0])}><Trash2 size={15} /></IconButton>}</div>)}</div>
 }
 
-function StockPanel({ stock, save, remove, exportStock, importStock }) {
-  const [form, setForm] = useState({ name: '', quantity: '', unit_price: '' })
+function StockPanel({ stock, save, remove, exportStock, importStock, auth, api }) {
+  const businessType = auth?.company_business_type || 'general';
+  
+  // State for serial numbers modal (Electronics only)
+  const [selectedStockForSerials, setSelectedStockForSerials] = useState(null);
+  const [serials, setSerials] = useState([]);
+  const [serialForm, setSerialForm] = useState({ serial_or_imei: '', vendor_warranty_expiry: '', client_warranty_months: 0 });
+  const [serialLoading, setSerialLoading] = useState(false);
+  const [serialError, setSerialError] = useState('');
+  
+  // Expiry alerts for pharmacy
+  const [expiryAlerts, setExpiryAlerts] = useState({ expired: [], within_30: [], within_60: [], within_90: [] });
+  const [showExpiryAlerts, setShowExpiryAlerts] = useState(false);
+
+  const fetchExpiryAlerts = useCallback(async () => {
+    if (businessType === 'pharmacy') {
+      try {
+        const res = await api.get('/expiry-alerts/');
+        setExpiryAlerts(res.data);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, [businessType, api]);
+
+  useEffect(() => {
+    fetchExpiryAlerts();
+  }, [fetchExpiryAlerts]);
+
+  const loadSerials = async (stockItem) => {
+    setSelectedStockForSerials(stockItem);
+    setSerialLoading(true);
+    setSerialError('');
+    try {
+      const res = await api.get(`/serials/?stock=${stockItem.id}`);
+      setSerials(res.data);
+    } catch (e) {
+      setSerialError('Failed to load serial numbers.');
+    } finally {
+      setSerialLoading(false);
+    }
+  };
+
+  const handleAddSerial = async (e) => {
+    e.preventDefault();
+    if (!serialForm.serial_or_imei) return;
+    setSerialLoading(true);
+    setSerialError('');
+    try {
+      const payload = {
+        stock: selectedStockForSerials.id,
+        serial_or_imei: serialForm.serial_or_imei,
+        vendor_warranty_expiry: serialForm.vendor_warranty_expiry || null,
+        client_warranty_months: parseInt(serialForm.client_warranty_months) || 0
+      };
+      await api.post('/serials/', payload);
+      setSerialForm({ serial_or_imei: '', vendor_warranty_expiry: '', client_warranty_months: 0 });
+      const res = await api.get(`/serials/?stock=${selectedStockForSerials.id}`);
+      setSerials(res.data);
+    } catch (err) {
+      setSerialError(err.response?.data?.detail || 'Failed to add serial number.');
+    } finally {
+      setSerialLoading(false);
+    }
+  };
+
+  const handleRemoveSerial = async (serialId) => {
+    if (!window.confirm('Delete this serial number?')) return;
+    setSerialLoading(true);
+    try {
+      await api.delete(`/serials/${serialId}/`);
+      const res = await api.get(`/serials/?stock=${selectedStockForSerials.id}`);
+      setSerials(res.data);
+    } catch (err) {
+      setSerialError('Failed to delete serial number.');
+    } finally {
+      setSerialLoading(false);
+    }
+  };
+
+  const [form, setForm] = useState({ 
+    name: '', 
+    quantity: '', 
+    unit_price: '',
+    batch_number: '',
+    expiry_date: '',
+    rack_location: '',
+    generic_name: '',
+    barcode: '',
+    weight_unit: 'pcs',
+    multi_buy_qty: '',
+    multi_buy_discount: ''
+  })
   const [editing, setEditing] = useState(null)
 
   useEffect(() => {
     if (editing) {
-      setForm({ name: editing.name, quantity: editing.quantity, unit_price: editing.unit_price, id: editing.id })
+      setForm({
+        name: editing.name,
+        quantity: editing.quantity,
+        unit_price: editing.unit_price,
+        batch_number: editing.batch_number || '',
+        expiry_date: editing.expiry_date || '',
+        rack_location: editing.rack_location || '',
+        generic_name: editing.generic_name || '',
+        barcode: editing.barcode || '',
+        weight_unit: editing.weight_unit || 'pcs',
+        multi_buy_qty: editing.multi_buy_qty || '',
+        multi_buy_discount: editing.multi_buy_discount || '',
+        id: editing.id
+      })
     } else {
-      setForm({ name: '', quantity: '', unit_price: '' })
+      setForm({ 
+        name: '', 
+        quantity: '', 
+        unit_price: '',
+        batch_number: '',
+        expiry_date: '',
+        rack_location: '',
+        generic_name: '',
+        barcode: '',
+        weight_unit: 'pcs',
+        multi_buy_qty: '',
+        multi_buy_discount: ''
+      })
     }
   }, [editing])
 
@@ -1086,24 +1228,88 @@ function StockPanel({ stock, save, remove, exportStock, importStock }) {
     e.preventDefault()
     save('stock', form)
     setEditing(null)
-    setForm({ name: '', quantity: '', unit_price: '' })
+    setForm({ 
+      name: '', 
+      quantity: '', 
+      unit_price: '',
+      batch_number: '',
+      expiry_date: '',
+      rack_location: '',
+      generic_name: '',
+      barcode: '',
+      weight_unit: 'pcs',
+      multi_buy_qty: '',
+      multi_buy_discount: ''
+    })
+    fetchExpiryAlerts();
   }
 
   return (
     <div className="stockContainer">
-      <Panel title={editing ? "Edit Stock Item" : "Add New Stock"} icon={Package}>
-        <form className="inlineForm" onSubmit={handleSubmit}>
-          <Field label="Stock Item Name">
-            <input required placeholder="e.g. Cement Bag, Steel Rod" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+      {/* Pharmacy Expiry Alerts Header Banner */}
+      {businessType === 'pharmacy' && (expiryAlerts.expired.length > 0 || expiryAlerts.within_30.length > 0) && (
+        <div style={{ padding: '15px', background: '#fef2f2', border: '1px solid #f87171', color: '#b91c1c', borderRadius: '8px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <strong>⚠️ Expiry Warning:</strong> You have {expiryAlerts.expired.length} expired item(s) and {expiryAlerts.within_30.length} item(s) approaching 30-day expiry threshold.
+          </div>
+          <button className="primary" onClick={() => setShowExpiryAlerts(true)} style={{ background: '#b91c1c', border: 'none', color: '#fff', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>View Expiries</button>
+        </div>
+      )}
+
+      <Panel title={editing ? "Edit Stock Item" : "Add New Stock Item"} icon={Package}>
+        <form className="stockForm" onSubmit={handleSubmit}>
+          <Field label="Item Name">
+            <input required placeholder="Product name or detail" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </Field>
-          <Field label="Total Stock Quantity">
+          <Field label="Total Quantity">
             <input required type="number" placeholder="Total quantity" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
           </Field>
-          <Field label="Unit Price (Rs)">
+          <Field label="Unit Purchase Price">
             <input required type="number" step="any" placeholder="Purchase price per unit" value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: e.target.value })} />
           </Field>
+
+          {/* Pharmacy specific fields */}
+          {businessType === 'pharmacy' && (
+            <>
+              <Field label="Generic Name">
+                <input placeholder="e.g. Acetaminophen" value={form.generic_name} onChange={(e) => setForm({ ...form, generic_name: e.target.value })} />
+              </Field>
+              <Field label="Batch Serial Number">
+                <input placeholder="e.g. BATCH-A2" value={form.batch_number} onChange={(e) => setForm({ ...form, batch_number: e.target.value })} />
+              </Field>
+              <Field label="Chronological Expiry Date">
+                <input type="date" value={form.expiry_date} onChange={(e) => setForm({ ...form, expiry_date: e.target.value })} />
+              </Field>
+              <Field label="Physical Rack Assignment Matrix">
+                <input placeholder="e.g. Aisle 2 - Rack B" value={form.rack_location} onChange={(e) => setForm({ ...form, rack_location: e.target.value })} />
+              </Field>
+            </>
+          )}
+
+          {/* Supermarket specific fields */}
+          {businessType === 'supermarket' && (
+            <>
+              <Field label="Barcode Identifier">
+                <input placeholder="Scan or enter barcode" value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} />
+              </Field>
+              <Field label="Weight scale serialization unit">
+                <select value={form.weight_unit} onChange={(e) => setForm({ ...form, weight_unit: e.target.value })}>
+                  <option value="pcs">Pieces (pcs)</option>
+                  <option value="kg">Kilograms (kg)</option>
+                  <option value="g">Grams (g)</option>
+                </select>
+              </Field>
+              <Field label="Multi-buy threshold qty (Optional)">
+                <input type="number" placeholder="e.g. 3 (Buy 3 get discount)" value={form.multi_buy_qty} onChange={(e) => setForm({ ...form, multi_buy_qty: e.target.value })} />
+              </Field>
+              <Field label="Multi-buy discount rate (Optional)">
+                <input type="number" step="any" placeholder="e.g. 50 (Rs. 50 off)" value={form.multi_buy_discount} onChange={(e) => setForm({ ...form, multi_buy_discount: e.target.value })} />
+              </Field>
+            </>
+          )}
+
           <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', minHeight: '42px' }}>
-            <button className="primary">{editing ? "Update" : "Add Stock"}</button>
+            <button className="primary">{editing ? "Update Item" : "Add Stock Item"}</button>
             {editing && <button type="button" onClick={() => setEditing(null)}>Cancel</button>}
           </div>
         </form>
@@ -1129,6 +1335,9 @@ function StockPanel({ stock, save, remove, exportStock, importStock }) {
                 <thead>
                   <tr>
                     <th>Item Name</th>
+                    {businessType === 'pharmacy' && <th>Generic Cross-Ref</th>}
+                    {businessType === 'pharmacy' && <th>Batch & Expiry</th>}
+                    {businessType === 'supermarket' && <th>Barcode</th>}
                     <th>Unit Price</th>
                     <th>Total Stock</th>
                     <th>Sold Stock</th>
@@ -1140,7 +1349,19 @@ function StockPanel({ stock, save, remove, exportStock, importStock }) {
                 <tbody>
                   {stock.map((item) => (
                     <tr key={item.id}>
-                      <td><strong>{item.name}</strong></td>
+                      <td>
+                        <strong>{item.name}</strong>
+                        {businessType === 'pharmacy' && item.rack_location && <small style={{ display: 'block', color: '#64748b' }}>Rack: {item.rack_location}</small>}
+                        {businessType === 'supermarket' && item.weight_unit && <small style={{ display: 'block', color: '#64748b' }}>Unit: {item.weight_unit.toUpperCase()}</small>}
+                      </td>
+                      {businessType === 'pharmacy' && <td><span className="pill">{item.generic_name || '-'}</span></td>}
+                      {businessType === 'pharmacy' && (
+                        <td>
+                          {item.batch_number ? <span className="pill blue" style={{marginRight: '5px'}}>{item.batch_number}</span> : '-'}
+                          {item.expiry_date ? <span className={`pill ${new Date(item.expiry_date) < new Date() ? 'red' : 'orange'}`}>{item.expiry_date}</span> : '-'}
+                        </td>
+                      )}
+                      {businessType === 'supermarket' && <td><code>{item.barcode || '-'}</code></td>}
                       <td>{currency(item.unit_price)}</td>
                       <td><span className="pill blue">{item.quantity}</span></td>
                       <td><span className="pill green">{item.sold_stock}</span></td>
@@ -1151,7 +1372,16 @@ function StockPanel({ stock, save, remove, exportStock, importStock }) {
                       </td>
                       <td>{currency(item.remaining_stock * item.unit_price)}</td>
                       <td>
-                        <div className="rowActions">
+                        <div className="rowActions" style={{ display: 'flex', gap: '4px' }}>
+                          {businessType === 'electronics' && (
+                            <button 
+                              type="button" 
+                              onClick={() => loadSerials(item)} 
+                              style={{ padding: '4px 8px', fontSize: '11px', background: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                            >
+                              Serials
+                            </button>
+                          )}
                           <IconButton onClick={() => setEditing(item)}><Edit3 size={15} /></IconButton>
                           <IconButton tone="danger" onClick={() => remove(item.id)}><Trash2 size={15} /></IconButton>
                         </div>
@@ -1166,14 +1396,160 @@ function StockPanel({ stock, save, remove, exportStock, importStock }) {
           )}
         </Panel>
       </div>
+
+      {/* Electronics Serial Numbers Modal */}
+      {selectedStockForSerials && (
+        <div className="modalOverlay" onClick={() => setSelectedStockForSerials(null)}>
+          <div className="onboarding-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px', width: '90%' }}>
+            <div className="step-header" style={{ marginBottom: '15px' }}>
+              <h2>Manage Serials for {selectedStockForSerials.name}</h2>
+              <p>Register unique IMEIs or equipment serial codes for inventory identification.</p>
+            </div>
+            
+            {serialError && <div className="onboarding-error" style={{ marginBottom: '10px' }}>{serialError}</div>}
+            
+            <form onSubmit={handleAddSerial} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: '8px', alignItems: 'flex-end', marginBottom: '15px' }}>
+              <Field label="Serial / IMEI Code">
+                <input required placeholder="Enter unique code" value={serialForm.serial_or_imei} onChange={(e) => setSerialForm({ ...serialForm, serial_or_imei: e.target.value })} style={{ height: '34px' }} />
+              </Field>
+              <Field label="Vendor Warranty Expiry">
+                <input type="date" value={serialForm.vendor_warranty_expiry} onChange={(e) => setSerialForm({ ...serialForm, vendor_warranty_expiry: e.target.value })} style={{ height: '34px' }} />
+              </Field>
+              <Field label="Client Warranty (Months)">
+                <input type="number" placeholder="0" value={serialForm.client_warranty_months} onChange={(e) => setSerialForm({ ...serialForm, client_warranty_months: e.target.value })} style={{ height: '34px' }} />
+              </Field>
+              <button className="primary" style={{ height: '34px', minHeight: '34px', padding: '0 12px' }} disabled={serialLoading}>Add</button>
+            </form>
+            
+            <div className="tableWrap" style={{ maxHeight: '250px', overflowY: 'auto' }}>
+              {serialLoading && serials.length === 0 ? <p>Loading serials...</p> : (
+                <table style={{ fontSize: '13px' }}>
+                  <thead>
+                    <tr>
+                      <th>Serial / IMEI</th>
+                      <th>Warranty</th>
+                      <th>Status</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {serials.map(s => (
+                      <tr key={s.id}>
+                        <td><strong>{s.serial_or_imei}</strong></td>
+                        <td>
+                          <div style={{ fontSize: '11px', color: '#64748b' }}>
+                            {s.vendor_warranty_expiry && <div>Vendor: {s.vendor_warranty_expiry}</div>}
+                            {s.client_warranty_months > 0 && <div>Client: {s.client_warranty_months} mo</div>}
+                          </div>
+                        </td>
+                        <td><span className={`pill ${s.status === 'available' ? 'green' : 'red'}`}>{s.status}</span></td>
+                        <td>
+                          <IconButton tone="danger" onClick={() => handleRemoveSerial(s.id)} disabled={s.status === 'sold'}><Trash2 size={13} /></IconButton>
+                        </td>
+                      </tr>
+                    ))}
+                    {serials.length === 0 && <tr><td colSpan="4" style={{ textAlign: 'center' }}>No serial numbers registered yet.</td></tr>}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '15px' }}>
+              <button onClick={() => setSelectedStockForSerials(null)} className="onboarding-btn secondary">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pharmacy Expiry Alerts Detail Modal */}
+      {showExpiryAlerts && (
+        <div className="modalOverlay" onClick={() => setShowExpiryAlerts(false)}>
+          <div className="onboarding-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px', width: '95%' }}>
+            <div className="step-header" style={{ marginBottom: '15px' }}>
+              <h2>Pharmacy Expiry Alerts Details</h2>
+              <p>Monitor your chronologically expiring medicine stock layers.</p>
+            </div>
+            
+            <div style={{ display: 'grid', gap: '15px', maxHeight: '400px', overflowY: 'auto', paddingRight: '5px' }}>
+              {expiryAlerts.expired.length > 0 && (
+                <div>
+                  <h4 style={{ color: '#b91c1c', borderBottom: '1px solid #fecaca', paddingBottom: '5px', margin: '0 0 8px 0' }}>🛑 Expired Products ({expiryAlerts.expired.length})</h4>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: '6px', fontSize: '13px' }}>
+                    {expiryAlerts.expired.map(item => (
+                      <li key={item.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#fef2f2', borderRadius: '4px' }}>
+                        <span><strong>{item.name}</strong> ({item.generic_name}) - Batch: {item.batch_number}</span>
+                        <span style={{ color: '#b91c1c', fontWeight: 'bold' }}>Expired: {item.expiry_date}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              {expiryAlerts.within_30.length > 0 && (
+                <div>
+                  <h4 style={{ color: '#dc2626', borderBottom: '1px solid #fee2e2', paddingBottom: '5px', margin: '10px 0 8px 0' }}>⚠️ Expiring Within 30 Days ({expiryAlerts.within_30.length})</h4>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: '6px', fontSize: '13px' }}>
+                    {expiryAlerts.within_30.map(item => (
+                      <li key={item.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#fff5f5', borderRadius: '4px' }}>
+                        <span><strong>{item.name}</strong> - Batch: {item.batch_number}</span>
+                        <span style={{ color: '#dc2626', fontWeight: 'bold' }}>Expiry: {item.expiry_date}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {expiryAlerts.within_60.length > 0 && (
+                <div>
+                  <h4 style={{ color: '#d97706', borderBottom: '1px solid #fef3c7', paddingBottom: '5px', margin: '10px 0 8px 0' }}>⚠️ Expiring Within 60 Days ({expiryAlerts.within_60.length})</h4>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: '6px', fontSize: '13px' }}>
+                    {expiryAlerts.within_60.map(item => (
+                      <li key={item.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#fffbeb', borderRadius: '4px' }}>
+                        <span><strong>{item.name}</strong> - Batch: {item.batch_number}</span>
+                        <span style={{ color: '#d97706', fontWeight: 'bold' }}>Expiry: {item.expiry_date}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '15px' }}>
+              <button onClick={() => setShowExpiryAlerts(false)} className="onboarding-btn secondary">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-function SalesPanel({ sales, stock, accounts, save, remove, exportSales, importSales, auth }) {
-  const [form, setForm] = useState({ stock: '', quantity: '', sale_price: '', date: new Date().toISOString().slice(0, 10), account: '', notes: '', customer_name: '', customer_phone: '', customer_address: '' })
+function SalesPanel({ sales, stock, accounts, save, remove, exportSales, importSales, auth, api }) {
+  const businessType = auth?.company_business_type || 'general';
+
+  const [form, setForm] = useState({ 
+    stock: '', 
+    quantity: '', 
+    sale_price: '', 
+    date: new Date().toISOString().slice(0, 10), 
+    account: '', 
+    notes: '', 
+    customer_name: '', 
+    customer_phone: '', 
+    customer_address: '',
+    selected_serial: '',
+    selected_batch: ''
+  })
   const [editing, setEditing] = useState(null)
   const [activeInvoice, setActiveInvoice] = useState(null)
+  
+  // Electronics serials list
+  const [availableSerials, setAvailableSerials] = useState([]);
+  const [serialLoading, setSerialLoading] = useState(false);
+
+  // Supermarket barcode scan state
+  const [barcodeInput, setBarcodeInput] = useState('');
+  const [barcodeError, setBarcodeError] = useState('');
 
   useEffect(() => {
     if (editing) {
@@ -1187,6 +1563,8 @@ function SalesPanel({ sales, stock, accounts, save, remove, exportSales, importS
         customer_name: editing.customer_name || '',
         customer_phone: editing.customer_phone || '',
         customer_address: editing.customer_address || '',
+        selected_serial: editing.selected_serial ? String(editing.selected_serial) : '',
+        selected_batch: editing.selected_batch || '',
         id: editing.id
       })
     } else {
@@ -1199,10 +1577,29 @@ function SalesPanel({ sales, stock, accounts, save, remove, exportSales, importS
         notes: '',
         customer_name: '',
         customer_phone: '',
-        customer_address: ''
+        customer_address: '',
+        selected_serial: '',
+        selected_batch: ''
       })
     }
   }, [editing, accounts])
+
+  // Load serial numbers when stock item is selected in Electronics mode
+  useEffect(() => {
+    if (businessType === 'electronics' && form.stock) {
+      setSerialLoading(true);
+      api.get(`/serials/?stock=${form.stock}&status=available`)
+        .then(res => {
+          setAvailableSerials(res.data);
+          setSerialLoading(false);
+        })
+        .catch(() => {
+          setSerialLoading(false);
+        });
+    } else {
+      setAvailableSerials([]);
+    }
+  }, [form.stock, businessType, api]);
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -1217,22 +1614,70 @@ function SalesPanel({ sales, stock, accounts, save, remove, exportSales, importS
       notes: '',
       customer_name: '',
       customer_phone: '',
-      customer_address: ''
+      customer_address: '',
+      selected_serial: '',
+      selected_batch: ''
     })
   }
 
   const handleStockChange = (e) => {
     const selectedStockId = e.target.value
     const selectedStock = stock.find(s => String(s.id) === selectedStockId)
+    
+    // Auto fill default values
     setForm(f => ({
       ...f,
       stock: selectedStockId,
-      sale_price: selectedStock ? selectedStock.unit_price : ''
+      sale_price: selectedStock ? selectedStock.unit_price : '',
+      selected_batch: selectedStock ? (selectedStock.batch_number || '') : '',
+      quantity: businessType === 'electronics' ? '1' : f.quantity // Electronics default is 1 qty
     }))
   }
 
+  // Handle barcode scanning in Supermarket mode
+  const handleBarcodeSubmit = async (e) => {
+    e.preventDefault();
+    if (!barcodeInput) return;
+    setBarcodeError('');
+    try {
+      const res = await api.get(`/barcode-lookup/?barcode=${barcodeInput}`);
+      const foundStock = res.data;
+      if (foundStock) {
+        setForm(f => ({
+          ...f,
+          stock: String(foundStock.id),
+          sale_price: foundStock.unit_price,
+          quantity: '1' // Default qty to 1 when barcode is scanned
+        }));
+        setBarcodeInput('');
+        // Focus the quantity field or confirm button
+        alert(`Scanned: ${foundStock.name}`);
+      }
+    } catch (err) {
+      setBarcodeError(err.response?.data?.detail || 'Item not found for this barcode.');
+    }
+  };
+
   return (
     <div className="salesContainer">
+      {/* Supermarket Barcode scan widget */}
+      {businessType === 'supermarket' && (
+        <Panel title="Barcode Laser Scanner Reader" icon={ShoppingCart}>
+          <form onSubmit={handleBarcodeSubmit} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <Field label="Laser Scan Barcode">
+              <input 
+                placeholder="Scan barcode with laser gun here..." 
+                value={barcodeInput} 
+                onChange={(e) => setBarcodeInput(e.target.value)} 
+                autoFocus 
+              />
+            </Field>
+            <button className="primary" style={{ marginTop: '20px', minHeight: '38px' }}>Ingest Code</button>
+          </form>
+          {barcodeError && <p style={{ color: '#ef4444', fontSize: '13px', margin: '5px 0 0 0' }}>{barcodeError}</p>}
+        </Panel>
+      )}
+
       <Panel title={editing ? "Edit Sale Record" : "Record New Sale"} icon={ShoppingCart}>
         <form className="salesForm" onSubmit={handleSubmit}>
           <Field label="Select Stock Item">
@@ -1245,8 +1690,37 @@ function SalesPanel({ sales, stock, accounts, save, remove, exportSales, importS
               ))}
             </select>
           </Field>
+
+          {/* Electronics Serial Number Selection */}
+          {businessType === 'electronics' && form.stock && (
+            <Field label="Select Serial / IMEI Number">
+              <select required value={form.selected_serial} onChange={(e) => setForm({ ...form, selected_serial: e.target.value })} disabled={serialLoading}>
+                <option value="" disabled>{serialLoading ? "Loading Serials..." : "Select Serial"}</option>
+                {availableSerials.map(s => (
+                  <option key={s.id} value={s.id}>
+                    {s.serial_or_imei} {s.client_warranty_months > 0 ? `(${s.client_warranty_months} Months Warranty)` : ''}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
+
+          {/* Pharmacy Batch Number Input */}
+          {businessType === 'pharmacy' && form.stock && (
+            <Field label="Select / Confirm Batch Number">
+              <input required placeholder="Confirm batch sold" value={form.selected_batch} onChange={(e) => setForm({ ...form, selected_batch: e.target.value })} />
+            </Field>
+          )}
+
           <Field label="Sale Quantity">
-            <input required type="number" placeholder="Qty sold" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
+            <input 
+              required 
+              type="number" 
+              placeholder="Qty sold" 
+              value={form.quantity} 
+              onChange={(e) => setForm({ ...form, quantity: e.target.value })} 
+              disabled={businessType === 'electronics'} // Electronics forces qty 1
+            />
           </Field>
           <Field label="Sale Price (per unit)">
             <input required type="number" step="any" placeholder="Sale price per unit" value={form.sale_price} onChange={(e) => setForm({ ...form, sale_price: e.target.value })} />
@@ -1317,7 +1791,11 @@ function SalesPanel({ sales, stock, accounts, save, remove, exportSales, importS
                   {sales.map((sale) => (
                     <tr key={sale.id}>
                       <td>{sale.date}</td>
-                      <td><strong>{sale.stock_name}</strong></td>
+                      <td>
+                        <strong>{sale.stock_name}</strong>
+                        {sale.selected_serial_code && <small style={{ display: 'block', color: '#64748b', fontWeight: '500' }}>S/N: {sale.selected_serial_code}</small>}
+                        {sale.selected_batch && <small style={{ display: 'block', color: '#64748b', fontWeight: '500' }}>Batch: {sale.selected_batch}</small>}
+                      </td>
                       <td>
                         {sale.customer_name ? (
                           <div>
@@ -1406,7 +1884,11 @@ function SalesPanel({ sales, stock, accounts, save, remove, exportSales, importS
                 </thead>
                 <tbody>
                   <tr>
-                    <td><strong>{activeInvoice.stock_name}</strong></td>
+                    <td>
+                      <strong>{activeInvoice.stock_name}</strong>
+                      {activeInvoice.selected_serial_code && <div style={{ fontSize: '12px', color: '#475569', marginTop: '2px', fontWeight: '500' }}>S/N or IMEI: {activeInvoice.selected_serial_code}</div>}
+                      {activeInvoice.selected_batch && <div style={{ fontSize: '12px', color: '#475569', marginTop: '2px', fontWeight: '500' }}>Batch: {activeInvoice.selected_batch}</div>}
+                    </td>
                     <td>{activeInvoice.quantity}</td>
                     <td>{currency(activeInvoice.sale_price)}</td>
                     <td><strong>{currency(activeInvoice.total_price)}</strong></td>
@@ -1463,3 +1945,4 @@ function SalesPanel({ sales, stock, accounts, save, remove, exportSales, importS
     </div>
   )
 }
+
